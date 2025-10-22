@@ -1,4 +1,3 @@
-# Another test.
 import sys                   # For getting command line args.
 import socket                # For creating and managing sockets.
 import threading       as th # For handling multiple clients concurrently.
