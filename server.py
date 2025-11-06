@@ -229,6 +229,32 @@ def startServer(uut):
     #print(logStr)
 #############################################################################
 
+def get_lan_ip():
+    """
+    Attempts to determine the local LAN IP address of the machine.
+    This method works by connecting to an external server (like Google's DNS)
+    and then retrieving the local IP address used for that connection.
+    """
+    try:
+        # Create a socket object
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        
+        # Connect to an external address (Google's public DNS server)
+        # This connection is not established, but it forces the socket
+        # to bind to a local interface, allowing us to get its address.
+        s.connect(("8.8.8.8", 80))
+        
+        # Get the local IP address of the socket
+        lan_ip = s.getsockname()[0]
+        
+        # Close the socket
+        s.close()
+        
+        return lan_ip
+    except Exception as e:
+        return None
+#############################################################################
+
 if __name__ == '__main__':
 
     arguments  = sys.argv
@@ -248,5 +274,7 @@ if __name__ == '__main__':
         sys.exit()
     else:
         sc.hwInit()
+        lanIp = get_lan_ip()
+        sc.displayLanIp(lanIp)
 
     startServer(mnUut)

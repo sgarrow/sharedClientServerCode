@@ -62,8 +62,8 @@ if __name__ == '__main__':
     # Each client will connect to the server with a new address.
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    #connectType = input(' ssh, lan, internet (s,l,i) -> ')
-    connectType  = 'l' # pylint: disable=C0103
+    connectType = input(' same, lan, internet (s,l,i) -> ')
+    #connectType  = 'l' # pylint: disable=C0103
     connectDict  = {'s':'localhost','l':cfgDict['myLan'],'i':cfgDict['myIP']}
     PORT         = int(cfgDict['myPort'])
 
