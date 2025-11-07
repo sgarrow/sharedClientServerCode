@@ -115,21 +115,17 @@ if __name__ == '__main__':
         else:
             msgLst = message.split()
 
-            if   uut.startswith('clk')  and \
+            if  uut.startswith('clk')  and \
                 len(msgLst) > 0        and \
                 msgLst[0].lstrip() in specialDict['clk']:
                                                # Send special message.
-                print(cc.processSpecialCmd('uploadPic',
-                                            clientSocket,
-                                            msgLst), end = '')
+                cc.processSpecialCmd('uploadPic',clientSocket,msgLst)
 
             elif uut.startswith('spr') and \
-                len(msgLst) > 0       and \
+                len(msgLst) > 0        and \
                 msgLst[0].lstrip() in specialDict['spr']:
                                                # Send special message.
-                print(cc.processSpecialCmd('dummy',
-                                            clientSocket,
-                                            msgLst), end = '')
+                cc.processSpecialCmd('dummy',clientSocket,msgLst)
 
             else:                               # Send normal message.
                 
