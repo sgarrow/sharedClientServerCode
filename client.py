@@ -98,7 +98,7 @@ if __name__ == '__main__':
     rspStr          = ''
     specialDict     = { 'clk':['up'],           # Special cmds.
                         'spr':['dummy'] }
-    longExeTimeMsgs = ['mus','ks','pc','up']    # Cmds that take long.
+    longExeTimeMsgs = ['mus','ks','pc','up','dp'] # Cmds that take long.
     normWaitTime    = 0.6
     longWaitTime    = 2.0
 
