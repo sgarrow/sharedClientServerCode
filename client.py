@@ -42,6 +42,7 @@ def getUserInput( uiToMainQ, aLock ):
         time.sleep(.01) # Gives 'main' a chance to run.
         if 'up' in userInput:
             time.sleep(1) # Gives 'main' a chance to run.
+                          # see pauseThread in tst dir
 #############################################################################
 
 if __name__ == '__main__':
@@ -128,7 +129,7 @@ if __name__ == '__main__':
                 cc.processSpecialCmd('dummy',clientSocket,msgLst)
 
             else:                               # Send normal message.
-                
+
                 clientSocket.send(message.encode())
 
         with threadLock:                        # Receive/print response.
