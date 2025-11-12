@@ -51,9 +51,9 @@ def handleClient( clientSocket, clientAddress, client2ServerCmdQ,
 
     rspStr = ''
     # Validate password
-    cfgDict = cfg.getCfgDict(uut)
+    cfgRspStr, cfgDict = cfg.getCfgDict(uut)
     data = clientSocket.recv(1024)
-    if data.decode() == cfgDict['myPwd']:
+    if data.decode() == cfgDict[uut]['myPwd']:
         passwordIsOk = True
         rspStr += ' Accepted connection from: {}\n'.format(clientAddress)
     else:
@@ -149,8 +149,10 @@ def startServer(uut):
     #print('startServer', styleDict, styleDictLock)
 
     host = '0.0.0.0'  # Listen on all available interfaces
-    cfgDict = cfg.getCfgDict(uut)
-    port = int(cfgDict['myPort'])
+    rspStr, cfgDict = cfg.getCfgDict(uut)
+    print(rspStr)
+    print(cfgDict)
+    port = int(cfgDict[uut]['myPort'])
 
     serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 

@@ -51,13 +51,12 @@ if __name__ == '__main__':
     scriptName = arguments[0]
     userArgs   = arguments[1:]
     uut        = userArgs[0]
-    cfgDict    = cfg.getCfgDict(uut)
+    cfgRspStr, cfgDict    = cfg.getCfgDict(uut)
 
-    if cfgDict is None:
-        print('  Client could not connect to server.')
-        print('  Missing or (malformed) cfg file or missing cmd line arg')
-        print('  usage1: python client.py uut (uut = spr or clk).')
-        print('  usage2: python    gui.py uut (uut = spr or clk).')
+    if 'ERROR' in cfgRspStr:
+        print('\n Missing or (malformed) cfg file or missing cmd line arg')
+        print(' usage1: python client.py uut (uut = spr or clk).')
+        print(cfgRspStr)
         sys.exit()
 
     # Each client will connect to the server with a new address.
@@ -65,8 +64,8 @@ if __name__ == '__main__':
 
     connectType = input(' same, lan, internet (s,l,i) -> ')
     #connectType  = 'l' # pylint: disable=C0103
-    connectDict  = {'s':'localhost','l':cfgDict['myLan'],'i':cfgDict['myIP']}
-    PORT         = int(cfgDict['myPort'])
+    connectDict  = {'s':'localhost','l':cfgDict[uut]['myLan'],'i':cfgDict[uut]['myIP']}
+    PORT         = int(cfgDict[uut]['myPort'])
 
     try:
         clientSocket.connect((connectDict[connectType], PORT ))
@@ -80,7 +79,7 @@ if __name__ == '__main__':
     printSocketInfo(clientSocket)
 
     # Validate password
-    pwd = cfgDict['myPwd']
+    pwd = cfgDict[uut]['myPwd']
     clientSocket.send(pwd.encode())
     time.sleep(.5)
     response = clientSocket.recv(1024)
