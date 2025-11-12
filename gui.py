@@ -37,8 +37,9 @@ class ClientApp(App):
             self.show_connection_popup(uut)  #  now show LAN/Internet/Localhost popup
     
         height = dp(60) if platform == 'android' else 40
-        for choice in ['spr', 'clk', 'clk2']:
-            layout.add_widget(Button(text=choice,  size_hint_y=None, height=height, 
+        cfgRspStr, cfgDict = cfg.getCfgDict('dummyParm')
+        for choice in cfgDict.keys():
+            layout.add_widget(Button(text=choice, size_hint_y=None, height=height, 
                                      on_press=partial(choose_uut, choice)))
 
         popup.content = layout
@@ -190,18 +191,18 @@ class ClientLayout(BoxLayout):
 
     def start_connection(self,uut):
 
-        cfgDict = cfg.getCfgDict(uut)
+        cfgRspStr, cfgDict = cfg.getCfgDict(uut)
 
         # Populate a connection dictionary based on cfgDict contents.
         connectDict = {
             's': 'localhost',
-            'l': cfgDict['myLan'],
-            'i': cfgDict['myIP']
+            'l': cfgDict[uut]['myLan'],
+            'i': cfgDict[uut]['myIP']
         }
 
         ip   = connectDict[self.connectType]
-        port = int(cfgDict['myPort'])
-        pwd  = cfgDict['myPwd']
+        port = int(cfgDict[uut]['myPort'])
+        pwd  = cfgDict[uut]['myPwd']
 
         self.conn = ClientConnection(ip, port, pwd, self.update_output)
     ###################
