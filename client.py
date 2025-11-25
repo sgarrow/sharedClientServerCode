@@ -37,7 +37,9 @@ def getUserInput( uiToMainQ, aLock ):
             prompt = '\n Choice (m=menu, close) -> '
             userInput = input( prompt )
             uiToMainQ.put(userInput)
-            if userInput in ['ks','close']:
+            if  len(userInput.split()) > 0 \
+                and userInput.split()[0] in ['ks','close']:
+                print('breaking')
                 break
         time.sleep(.01) # Gives 'main' a chance to run.
         if 'up' in userInput:
@@ -99,6 +101,7 @@ if __name__ == '__main__':
     specialDict     = { 'clk':['up'],           # Special cmds.
                         'spr':['dummy'] }
     longExeTimeMsgs = ['mus','ks','pc','up','dp'] # Cmds that take long.
+    exitStrings     = ['RE: close', 'RE: ks']
     normWaitTime    = 0.6
     longWaitTime    = 2.0
 
@@ -143,7 +146,7 @@ if __name__ == '__main__':
                     readyToRead,_, _=select.select([clientSocket],[],[],.25)
                 print('\n{}'.format(rspStr),flush = True)
 
-        if message=='close' or 'RE: ks' in rspStr:  # Exit on close or ks.
+        if any(word in rspStr for word in exitStrings): # Exit on close or ks. 
             break
 
     print('\n Client closing Socket')

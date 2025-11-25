@@ -75,8 +75,8 @@ def handleClient( clientSocket, clientAddress, client2ServerCmdQ,
         # Recieve msg from the client (and look (try) for UNEXPECTED EVENT).
         try: # In case user closed client window (x) instead of by close cmd.
             data = clientSocket.recv(1024) # Broke if any msg > 1024.
-            #print(data.decode())
-            #print('**************')
+            print(data.decode())
+            print('**************')
         except ConnectionResetError: # Windows throws this on (x).
             logStr += ' handleClient {} ConnectRstErr except in s.recv\n'.format(clientAddress)
             # Breaks the loop. handler/thread stops. Connection closed.
@@ -95,11 +95,11 @@ def handleClient( clientSocket, clientAddress, client2ServerCmdQ,
         print(logStr)
 
         # Process close special message & send response back to this client.
-        if data.decode() == 'close':  # Close this client's socket.
+        if data.decode().split()[0] == 'close': # Close this client's socket.
             logStr += processCloseCmd(clientSocket, clientAddress)
 
         # Process a ks special message & send response back to all clients.
-        elif data.decode() == 'ks': # Close all client sockets.
+        elif data.decode().split()[0] == 'ks':  # Close all client sockets.
             logStr += processKsCmd(clientSocket, clientAddress,
                                    client2ServerCmdQ,styleDict,styleDictLock)
 
@@ -266,8 +266,8 @@ if __name__ == '__main__':
     mnCfgDict  = None            # pylint: disable=C0103
     if len(arguments) >= 2:
         userArgs   = arguments[1:]
-        mnUut       = userArgs[0]
-        mnCfgDict   = cfg.getCfgDict(mnUut) # pylint: disable=C0103
+        mnUut      = userArgs[0]
+        mnCfgDict  = cfg.getCfgDict(mnUut) # pylint: disable=C0103
 
     if mnUut is None or mnCfgDict is None:
         print('  Server not started.')
