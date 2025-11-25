@@ -39,9 +39,8 @@ def getUserInput( uiToMainQ, aLock ):
             uiToMainQ.put(userInput)
             if  len(userInput.split()) > 0 \
                 and userInput.split()[0] in ['ks','close']:
-                print('breaking')
                 break
-        time.sleep(.01) # Gives 'main' a chance to run.
+        time.sleep(.01)   # Gives 'main' a chance to run.
         if 'up' in userInput:
             time.sleep(1) # Gives 'main' a chance to run.
                           # see pauseThread in tst dir
@@ -146,7 +145,7 @@ if __name__ == '__main__':
                     readyToRead,_, _=select.select([clientSocket],[],[],.25)
                 print('\n{}'.format(rspStr),flush = True)
 
-        if any(word in rspStr for word in exitStrings): # Exit on close or ks. 
+        if any(word in rspStr for word in exitStrings): # Exit on close or ks.
             break
 
     print('\n Client closing Socket')

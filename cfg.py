@@ -24,14 +24,14 @@ def getCfgDict(uut):
         rspStr += ' ERROR. File cfg.cfg not found.\n'
 
     # Verify port values
-    allPorts = [ cfgDict[x]['myPort'] for x in cfgDict.keys() ]
+    allPorts = [ v['myPort'] for v in cfgDict.values() ]
     allPortsAreInts = all(s.isdigit() for s in allPorts)
     if not allPortsAreInts:
         rspStr += ' ERROR. Non-digit character detected in port number:\n {}\n'.\
             format(allPorts)
 
-    allLanIps    = [ cfgDict[x]['myLan'].split('.') for x in cfgDict.keys() ]
-    allRouterIps = [ cfgDict[x]['myIP'].split('.')  for x in cfgDict.keys() ]
+    allLanIps    = [ v['myLan'].split('.') for v in cfgDict.values() ]
+    allRouterIps = [ v['myIP' ].split('.') for v in cfgDict.values() ]
     allIps       = [ allLanIps, allRouterIps ]
 
     # Verify Lan and router IP lengths
@@ -40,7 +40,7 @@ def getCfgDict(uut):
             if len(ip) != 4:
                 rspStr += ' ERROR. Invalid lengtth detected in LAN or Router IP:\n {}\n'.\
                     format(lanOrRouterIp)
-    
+
     # Verify Lan and router IP values
     for lanOrRouterIp in allIps:
         for ip in lanOrRouterIp:
@@ -50,7 +50,7 @@ def getCfgDict(uut):
                     format(lanOrRouterIp)
 
     # Verify the uut key is in main dict.
-    if uut not in cfgDict.keys():
+    if uut not in cfgDict:
         rspStr += ' ERROR. Sub-Dict {} not found.\n'.format(uut)
 
     return rspStr, cfgDict
@@ -66,10 +66,9 @@ if __name__ == '__main__':
 
     mnRspStr, mnCfgDict = getCfgDict(mnUut)
 
-    #pp.pprint(mnCfgDict)
+    pp.pprint(mnCfgDict)
 
     if 'ERROR' in mnRspStr:
         print('\n Missing or (malformed) cfg file or missing cmd line arg')
         print(' usage1: python client.py uut (uut = spr or clk).')
         print(mnRspStr)
-
