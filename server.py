@@ -1,5 +1,5 @@
-#
 import sys                   # For getting command line args.
+import os                    # For rebooting.
 import socket                # For creating and managing sockets.
 import threading       as th # For handling multiple clients concurrently.
 import queue                 # For Killing Server.
@@ -21,29 +21,38 @@ def processCloseCmd(clientSocket, clientAddress):
     return rspStr
 #############################################################################
 
-def processKsCmd( clientSocket, clientAddress, client2ServerCmdQ,
-                  styleDict, styleDictLock ):
+def processKsAndRbtCmds( clientSocket, clientAddress, client2ServerCmdQ,
+                         styleDict, styleDictLock, reboot = False ):
     rspStr = ''
+
+    if reboot:
+        tmpStr = 'rbt'
+    else:
+        tmpStr = 'ks'
+
     # Client sending ks has to be terminated first, I don't know why.
     rspStr += sc.ksCleanup(styleDict, styleDictLock)
-    rspStr += '\n handleClient {} set loop break for self RE: ks \n'.\
-              format(clientAddress)
+    rspStr += '\n handleClient {} set loop break for self RE: {} \n'.\
+              format(clientAddress,tmpStr)
     clientSocket.send(rspStr.encode()) # sends all even if > 1024.
     time.sleep(1.5) # Required so .send happens before socket closed.
 
     # Breaks the ALL loops, ALL connections close and ALL thread stops.
     for el in ut.openSocketsLst:
         if el['ca'] != clientAddress:
-            rspStr += ' handleClient {} set loop break for {} RE: ks \n'.\
-                format(clientAddress, el['ca'])
+            rspStr += ' handleClient {} set loop break for {} RE: {} \n'.\
+                format(clientAddress, el['ca'], tmpStr)
             el['cs'].send(rspStr.encode()) # sends all even if > 1024.
             time.sleep(1) # Required so .send happens before socket closed.
 
-    ut.openSocketsLst.clear()
-    client2ServerCmdQ.put('ks')
-    rspStrNew = rspStr.replace('ks','KS') # Keep client from breaking RE: rsl
+    rspStrNew  = rspStr.replace(   'ks', 'KS' ) # Prevent client break RE: rsl
+    rspStrNew2 = rspStrNew.replace('rbt','RBT') # Prevent client break RE: rsl
 
-    return rspStrNew
+    ut.openSocketsLst.clear()     # Causes all clients to terminate.
+    client2ServerCmdQ.put(tmpStr) # Causes the server to terminate and may 
+                                  # also cause the RPi to reboot.
+
+    return rspStrNew2
 #############################################################################
 
 def handleClient( clientSocket, clientAddress, client2ServerCmdQ,
@@ -61,7 +70,6 @@ def handleClient( clientSocket, clientAddress, client2ServerCmdQ,
         rspStr += ' Rejected connection from: {}\n'.format(clientAddress)
 
     fio.writeFile('serverLog.txt', rspStr)
-    #print(rspStr)
     clientSocket.send(rspStr.encode()) # sends all even if >1024.
 
     if passwordIsOk:
@@ -75,8 +83,10 @@ def handleClient( clientSocket, clientAddress, client2ServerCmdQ,
         # Recieve msg from the client (and look (try) for UNEXPECTED EVENT).
         try: # In case user closed client window (x) instead of by close cmd.
             data = clientSocket.recv(1024) # Broke if any msg > 1024.
-            #print(data.decode())
-            #print('**************')
+
+            # DEBUG STATEMENT
+            #print(' data.decode() = **{}**'.format(data.decode()))
+
         except ConnectionResetError: # Windows throws this on (x).
             logStr += ' handleClient {} ConnectRstErr except in s.recv\n'.format(clientAddress)
             # Breaks the loop. handler/thread stops. Connection closed.
@@ -92,16 +102,29 @@ def handleClient( clientSocket, clientAddress, client2ServerCmdQ,
         # Getting here means a command has been received.
         logStr = ' handleClient {} received: {}\n'.\
             format(clientAddress, data.decode())
-        print(logStr)
+
+        # DEBUG STATEMENT
+        #print(' logStr = **{}**'.format(logStr))
 
         # Process close special message & send response back to this client.
+
+        # DEBUG STATEMENT
+        #print(' data.decode().split() = **{}**'.format(data.decode().split()))
+
+        # Process a close special message & send response back to this clients.
         if data.decode().split()[0] == 'close': # Close this client's socket.
             logStr += processCloseCmd(clientSocket, clientAddress)
 
         # Process a ks special message & send response back to all clients.
         elif data.decode().split()[0] == 'ks':  # Close all client sockets.
-            logStr += processKsCmd(clientSocket, clientAddress,
+            logStr += processKsAndRbtCmds(clientSocket, clientAddress,
                                    client2ServerCmdQ,styleDict,styleDictLock)
+
+        # Process a rbt special message & send response back to all clients.
+        elif data.decode().split()[0] == 'rbt':  # Close all client sockets
+            logStr += processKsAndRbtCmds(clientSocket, clientAddress,
+                                   client2ServerCmdQ,styleDict,styleDictLock,
+                                   reboot=True ) # and cause an RPi reboot.
 
         # Process up special message and send response back to this client.
         elif data.decode().split()[0] in sc.specialCmds: # up fPath numBytes
@@ -123,11 +146,9 @@ def handleClient( clientSocket, clientAddress, client2ServerCmdQ,
 
         if logStr != '':
             fio.writeFile('serverLog.txt', logStr)
-            #print(logStr)
 
     logStr = ' handleClient {} closing socket and breaking loop\n'.format(clientAddress)
     fio.writeFile('serverLog.txt', logStr)
-    #print(logStr)
     clientSocket.close()
 #############################################################################
 
@@ -143,15 +164,11 @@ def startServer(uut):
     cDT = '{}'.format(now.isoformat( timespec = 'seconds' ))
     logStr =  'Server started at {} \n'.format(cDT)
     fio.writeFile('serverLog.txt', logStr)
-    #print(logStr)
 
     styleDict, styleDictLock = sc.getMultiProcSharedDict()
-    #print('startServer', styleDict, styleDictLock)
 
     host = '0.0.0.0'  # Listen on all available interfaces
     rspStr, cfgDict = cfg.getCfgDict(uut)
-    print(rspStr)
-    print(cfgDict)
     port = int(cfgDict[uut]['myPort'])
 
     serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -176,7 +193,6 @@ def startServer(uut):
     logStr  = 'Server listening on: {} {}\n'.format(host, port)
     logStr += printSocketInfo(serverSocket)
     fio.writeFile('serverLog.txt', logStr)
-    #print(logStr)
     # sndBufSize =  16,384  # 0.25 * 64K
     # rcvBufSize = 131,072  # 2.00 * 64K
 
@@ -188,7 +204,8 @@ def startServer(uut):
         except queue.Empty:
             pass
         else:
-            if cmd == 'ks':
+            if cmd in ['ks','rbt']:
+                # Wait for all clients to terminate
                 threadLst = [ t.name for t in th.enumerate() ]
                 while any(el.startswith('handleClient-') for el in threadLst):
                     threadLst = [ t.name for t in th.enumerate() ]
@@ -219,7 +236,6 @@ def startServer(uut):
 
         if logStr != '':
             fio.writeFile('serverLog.txt', logStr)
-            #print(logStr)
 
     logStr = 'Server breaking.\n'
     serverSocket.close()
@@ -228,7 +244,14 @@ def startServer(uut):
     cDT = '{}'.format(now.isoformat( timespec = 'seconds' ))
     logStr += 'Server stopped at {} \n'.format(cDT)
     fio.writeFile('serverLog.txt', logStr)
-    #print(logStr)
+
+    if cmd == 'rbt':
+        #print('rebooting')
+        # Trigger async reboot
+        th.Thread(target=lambda: os.system("sleep 3 && sudo reboot"), daemon=True).start()
+    else:
+        #print('not rebooting')
+
 #############################################################################
 
 def getLanIp():
