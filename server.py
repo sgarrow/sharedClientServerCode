@@ -1,15 +1,15 @@
-import sys                   # For getting command line args.
-import os                    # For rebooting.
-import socket                # For creating and managing sockets.
-import threading       as th # For handling multiple clients concurrently.
-import queue                 # For Killing Server.
-import time                  # For Killing Server and listThreads.
-import datetime        as dt # For logging server start/stop times.
-import cmdVectors      as cv # Contains vectors to "worker" functions.
-import cfg                   # For port, pwd.
-import fileIO          as fio
-import utils           as ut # For access to openSocketsLst[].
-import serverCustomize as sc
+import sys                    # For getting command line args.
+import os                     # For rebooting.
+import socket                 # For creating and managing sockets.
+import threading       as th  # For handling multiple clients concurrently.
+import queue                  # For Killing Server.
+import time                   # For Killing Server and listThreads.
+import datetime        as dt  # For logging server start/stop times.
+import cmdVectors      as cv  # For vectoring to worker functions.
+import cfg                    # For port, pwd.
+import fileIO          as fio # For writing to server log files.
+import utils           as ut  # For access to openSocketsLst[].
+import serverCustomize as sc  # For stopping clock at shutdown (ks or rbt).
 #############################################################################
 
 def processCloseCmd(clientSocket, clientAddress):
@@ -129,6 +129,7 @@ def handleClient( clientSocket, clientAddress, client2ServerCmdQ,
         # Process up special message and send response back to this client.
         elif data.decode().split()[0] in sc.specialCmds: # up fPath numBytes
             inParms  = data.decode().split()
+            print( 'inParms = {}'.format(inParms))
             response = sc.specialCmdHndlr( inParms, clientSocket )
             clientSocket.send(response.encode())
 
@@ -250,6 +251,7 @@ def startServer(uut):
         # Trigger async reboot
         th.Thread(target=lambda: os.system("sleep 3 && sudo reboot"), daemon=True).start()
     else:
+        pass
         #print('not rebooting')
 
 #############################################################################

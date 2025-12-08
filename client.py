@@ -115,33 +115,31 @@ if __name__ == '__main__':
     while pwdIsOk:
 
         try:
-            message = Ui2MainQ.get()              # Get/send msg from Q.
+            message = Ui2MainQ.get()    # Get/send msg from Q.
             waitTime = normWaitTime
             if any(word in message for word in longExeTimeMsgs):
                 waitTime = longWaitTime
         except queue.Empty:
-            print('q empty')                      # No message to send.
+            print('q empty')            # No message to send.
 
         else:
             msgLst = message.split()
 
-            if  uut.startswith('clk')  and \
-                len(msgLst) > 0        and \
+            if  'Clock'      in uut and len(msgLst) > 0 and \
                 msgLst[0].lstrip() in specialDict['clk']:
-                                                  # Send special message.
+                # Send special message.
                 cc.processSpecialCmd('uploadPic',clientSocket,msgLst)
 
-            elif uut.startswith('spr') and \
-                len(msgLst) > 0        and \
+            elif 'Sprinkler' in uut and len(msgLst) > 0 and \
                 msgLst[0].lstrip() in specialDict['spr']:
-                                                  # Send special message.
+                # Send special message.
                 cc.processSpecialCmd('dummy',clientSocket,msgLst)
 
-            else:                                 # Send normal message.
-
+            else:
+                # Send normal message. 
                 clientSocket.send(message.encode())
 
-        with threadLock:                          # Receive/print response.
+        with threadLock: # Receive/print response.
             readyToRead, _, _ = select.select([clientSocket],[],[],waitTime)
             if readyToRead:
                 rspStr = ''
