@@ -12,7 +12,11 @@ import utils           as ut  # For access to openSocketsLst[].
 import serverCustomize as sc  # For stopping clock at shutdown (ks or rbt).
 #############################################################################
 
-def processCloseCmd(clientSocket, clientAddress):
+def processCloseCmd( parmDict ):
+
+    clientSocket      = parmDict['clientSocket']
+    clientAddress     = parmDict['clientAddress']
+
     rspStr = ' handleClient {} set loop break RE: close \n'.format(clientAddress)
     clientSocket.send(rspStr.encode()) # sends all even if >1024.
     time.sleep(1) # Required so .send happens before socket closed.
@@ -21,8 +25,16 @@ def processCloseCmd(clientSocket, clientAddress):
     return rspStr
 #############################################################################
 
-def processKsAndRbtCmds( clientSocket, clientAddress, client2ServerCmdQ,
-                         styleDict, styleDictLock, reboot = False ):
+def processKsAndRbtCmds( parmDict ):
+
+    clientSocket      = parmDict['clientSocket']
+    clientAddress     = parmDict['clientAddress']
+    client2ServerCmdQ = parmDict['client2ServerCmdQ']
+    styleDict         = parmDict['styleDict']
+    styleDictLock     = parmDict['styleDictLock']
+    #uut               = parmDict['uut']
+    reboot            = parmDict['reboot']
+
     rspStr = ''
 
     if reboot:
@@ -49,14 +61,34 @@ def processKsAndRbtCmds( clientSocket, clientAddress, client2ServerCmdQ,
     rspStrNew2 = rspStrNew.replace('rbt','RBT') # Prevent client break RE: rsl
 
     ut.openSocketsLst.clear()     # Causes all clients to terminate.
-    client2ServerCmdQ.put(tmpStr) # Causes the server to terminate and may 
+    client2ServerCmdQ.put(tmpStr) # Causes the server to terminate and may
                                   # also cause the RPi to reboot.
 
     return rspStrNew2
 #############################################################################
 
-def handleClient( clientSocket, clientAddress, client2ServerCmdQ,
-                  styleDict, styleDictLock, uut ):
+def updateDict(inDict, **kwargs):
+    new = inDict.copy()
+    new.update(kwargs)
+    return new
+
+def handleClient( argDict ):
+
+    clientSocket      = argDict['clientSocket']
+    clientAddress     = argDict['clientAddress']
+    #client2ServerCmdQ = argDict['client2ServerCmdQ']
+    styleDict         = argDict['styleDict']
+    styleDictLock     = argDict['styleDictLock']
+    uut               = argDict['uut']
+
+    rebootArgDict = updateDict( argDict, reboot = True )
+    noRebtArgDict = updateDict( argDict, reboot = False )
+
+    vectorDict = {
+    'close': { 'fun': processCloseCmd,     'prm': noRebtArgDict },
+    'ks'   : { 'fun': processKsAndRbtCmds, 'prm': noRebtArgDict },
+    'rbt'  : { 'fun': processKsAndRbtCmds, 'prm': rebootArgDict }
+    }
 
     rspStr = ''
     # Validate password
@@ -76,15 +108,13 @@ def handleClient( clientSocket, clientAddress, client2ServerCmdQ,
         clientSocket.settimeout(3.0)   # Set .recv timeout - ks processing.
         ut.openSocketsLst.append({'cs':clientSocket,'ca':clientAddress})
 
-    # The while condition is made false by the close and ks command.
+    # The while condition is made false by the close, ks and rbt commands.
     while {'cs':clientSocket,'ca':clientAddress} in ut.openSocketsLst:
 
         logStr = ''
         # Recieve msg from the client (and look (try) for UNEXPECTED EVENT).
         try: # In case user closed client window (x) instead of by close cmd.
             data = clientSocket.recv(1024) # Broke if any msg > 1024.
-
-            # DEBUG STATEMENT
             #print(' data.decode() = **{}**'.format(data.decode()))
 
         except ConnectionResetError: # Windows throws this on (x).
@@ -102,34 +132,16 @@ def handleClient( clientSocket, clientAddress, client2ServerCmdQ,
         # Getting here means a command has been received.
         logStr = ' handleClient {} received: {}\n'.\
             format(clientAddress, data.decode())
+        print(logStr)
 
-        # DEBUG STATEMENT
-        #print(' logStr = **{}**'.format(logStr))
-
-        # Process close special message & send response back to this client.
-
-        # DEBUG STATEMENT
-        #print(' data.decode().split() = **{}**'.format(data.decode().split()))
-
-        # Process a close special message & send response back to this clients.
-        if data.decode().split()[0] == 'close': # Close this client's socket.
-            logStr += processCloseCmd(clientSocket, clientAddress)
-
-        # Process a ks special message & send response back to all clients.
-        elif data.decode().split()[0] == 'ks':  # Close all client sockets.
-            logStr += processKsAndRbtCmds(clientSocket, clientAddress,
-                                   client2ServerCmdQ,styleDict,styleDictLock)
-
-        # Process a rbt special message & send response back to all clients.
-        elif data.decode().split()[0] == 'rbt':  # Close all client sockets
-            logStr += processKsAndRbtCmds(clientSocket, clientAddress,
-                                   client2ServerCmdQ,styleDict,styleDictLock,
-                                   reboot=True ) # and cause an RPi reboot.
+        if data.decode().split()[0] in vectorDict:
+            func    = vectorDict[data.decode().split()[0]]['fun']
+            params  = vectorDict[data.decode().split()[0]]['prm']
+            logStr += func(params)
 
         # Process up special message and send response back to this client.
         elif data.decode().split()[0] in sc.specialCmds: # up fPath numBytes
             inParms  = data.decode().split()
-            print( 'inParms = {}'.format(inParms))
             response = sc.specialCmdHndlr( inParms, clientSocket )
             clientSocket.send(response.encode())
 
@@ -222,17 +234,16 @@ def startServer(uut):
             # Yes, create a new thread to handle the new client.
             logStr += 'Starting a new client handler thread.\n'
 
-            cThrd = th.Thread( target=handleClient,
+            argsDict = { 'clientSocket':       clientSocket,
+                         'clientAddress':      clientAddress,
+                         'client2ServerCmdQ': clientToServerCmdQ,
+                         'styleDict':          styleDict,
+                         'styleDictLock':      styleDictLock,
+                         'uut':                uut } 
 
-                                      args = ( clientSocket,
-                                               clientAddress,
-                                               clientToServerCmdQ,
-                                               styleDict,
-                                               styleDictLock,
-                                               uut ),
-
-                                      name =   'handleClient-{}'.\
-                                               format(clientAddress) )
+            cThrd= th.Thread(target= handleClient,
+                             args  = ( argsDict, ),
+                             name  = 'handleClient-{}'.format(clientAddress))
             cThrd.start()
 
         if logStr != '':
@@ -249,7 +260,7 @@ def startServer(uut):
     if cmd == 'rbt':
         #print('rebooting')
         # Trigger async reboot
-        th.Thread(target=lambda: os.system("sleep 3 && sudo reboot"), daemon=True).start()
+        th.Thread(target=lambda: os.system('sleep 3 && sudo reboot'), daemon=True).start()
     else:
         pass
         #print('not rebooting')

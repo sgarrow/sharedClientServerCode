@@ -31,7 +31,6 @@ def printSocketInfo(cSocket):
 def getUserInput( uiToMainQ, aLock ):
     userInput = ''
     breakCmds = ['ks','close','rbt']
-    #breakCmds = ['ks','close'] # Commenting out crashes server on rbt. Why?  
     while True:
         with aLock:  # If I take just this out then after a command I get a
                      # get a prompt printed, then the rsp printed then need
@@ -136,7 +135,7 @@ if __name__ == '__main__':
                 cc.processSpecialCmd('dummy',clientSocket,msgLst)
 
             else:
-                # Send normal message. 
+                # Send normal message.
                 clientSocket.send(message.encode())
 
         with threadLock: # Receive/print response.
