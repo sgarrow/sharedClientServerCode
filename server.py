@@ -71,6 +71,7 @@ def updateDict(inDict, **kwargs):
     new = inDict.copy()
     new.update(kwargs)
     return new
+#############################################################################
 
 def handleClient( argDict ):
 
@@ -114,8 +115,10 @@ def handleClient( argDict ):
         logStr = ''
         # Recieve msg from the client (and look (try) for UNEXPECTED EVENT).
         try: # In case user closed client window (x) instead of by close cmd.
-            data = clientSocket.recv(1024) # Broke if any msg > 1024.
-            #print(' data.decode() = **{}**'.format(data.decode()))
+            data       = clientSocket.recv(1024) # Broke if any msg > 1024.
+            dataDecode = data.decode()
+            splitData  = dataDecode.split()
+            cmd        = splitData[0]
 
         except ConnectionResetError: # Windows throws this on (x).
             logStr += ' handleClient {} ConnectRstErr except in s.recv\n'.format(clientAddress)
@@ -131,24 +134,23 @@ def handleClient( argDict ):
 
         # Getting here means a command has been received.
         logStr = ' handleClient {} received: {}\n'.\
-            format(clientAddress, data.decode())
+            format(clientAddress, dataDecode)
         print(logStr)
 
-        if data.decode().split()[0] in vectorDict:
-            func    = vectorDict[data.decode().split()[0]]['fun']
-            params  = vectorDict[data.decode().split()[0]]['prm']
+        if cmd in vectorDict:
+            func    = vectorDict[cmd]['fun']
+            params  = vectorDict[cmd]['prm']
             logStr += func(params)
 
         # Process up special message and send response back to this client.
-        elif data.decode().split()[0] in sc.specialCmds: # up fPath numBytes
-            inParms  = data.decode().split()
-            response = sc.specialCmdHndlr( inParms, clientSocket )
+        elif cmd in sc.specialCmds: # up fPath numBytes
+            response = sc.specialCmdHndlr( splitData, clientSocket )
             clientSocket.send(response.encode())
 
         # Process a normal message and send response back to this client.
         # (and look (try) for UNEXPECTED EVENT).
         else:
-            response = cv.vector(data.decode(),styleDict, styleDictLock)
+            response = cv.vector(dataDecode, styleDict, styleDictLock)
             try: # If user closed client window (x) instead of by close cmd.
                 clientSocket.send(response.encode())
             except BrokenPipeError:      # RPi throws this on (x).
