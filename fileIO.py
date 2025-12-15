@@ -1,3 +1,4 @@
+import re
 import sys
 import datetime        as dt
 #############################################################################
@@ -5,7 +6,7 @@ import datetime        as dt
 # Version number of the shared files.
 # Calling it the version of the "server".
 # As opposed to the version number of the "app" which is in cmdVectors.py
-VER = ' v1.7.1 - 11-Dec-2025'
+VER = ' v1.7.2 - 14-Dec-2025'
 
 def readFileWrk(parmLst, inFile):
     usage = ' Usage rlf [ numLines [start ["matchStr"]] ].'
@@ -43,13 +44,17 @@ def readFileWrk(parmLst, inFile):
     endIdx = min(endIdx, numLinesInFile-1)
 
     # Build matchStr.
+    numDoubleQuote = 0
+    for el in parmLst[2:]:
+        if '"' in el:
+            numDoubleQuote += el.count('"')
+    matchStrEntered = len(parmLst) > 2
+
     matchStr = ''
-    if len(parmLst) > 2 and parmLst[2].startswith('\"'):
-        for el in parmLst[2:]:
-            matchStr += (' ' + el) # Adds a starting space, remove below.
-            if el.endswith('\"'):
-                break
-        matchStr = matchStr[1:].replace('\"', '') # [:1] Removes.
+    if matchStrEntered and numDoubleQuote == 2:
+        startStr = ' '.join(x for x in parmLst[2:] )
+        idxLst = [match.start() for match in re.finditer('"', startStr)]
+        matchStr = startStr[idxLst[0]+1:idxLst[1]] 
 
     rspStr  = ' numLinesInFile = {:4}.\n'.format( numLinesInFile )
     rspStr += '  numLinesToRtn = {:4}.\n'.format( numLinesToRtn  )

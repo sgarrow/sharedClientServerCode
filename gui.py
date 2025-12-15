@@ -350,7 +350,7 @@ class ClientConnection:
                     if not chunk:
                         break
                     response += chunk
-                    if 'RE: ks' in response:
+                    if 'RE: ks' in response or 'RE: rbt' in response:
                         self.socket.close()
                         self.connected = False
                         self.on_receive('Server killed. Disconnected.')
