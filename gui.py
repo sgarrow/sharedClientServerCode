@@ -233,6 +233,12 @@ class ClientLayout(BoxLayout):
                         words.insert(2, '\n')
                         desc = ' '.join(words)
 
+                    if 'Test' in desc: 
+                        words = desc.split()
+                        if words[2] == '-':
+                            words[2] = '\n'
+                        desc = ' '.join(words)
+
                     self.add_command_button(cmd, desc)
 
         if 'Server killed' in text or 'Disconnected' in text:
