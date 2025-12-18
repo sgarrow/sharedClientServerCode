@@ -6,7 +6,7 @@ import datetime        as dt
 # Version number of the shared files.
 # Calling it the version of the "server".
 # As opposed to the version number of the "app" which is in cmdVectors.py
-VER = ' v1.7.4 - 16-Dec-2025'
+VER = ' v1.7.5 - 17-Dec-2025'
 
 def readFileWrk(parmLst, inFile):
     usage = ' Usage rlf [ numLines [start ["matchStr"]] ].'
@@ -54,7 +54,7 @@ def readFileWrk(parmLst, inFile):
     if matchStrEntered and numDoubleQuote == 2:
         startStr = ' '.join(x for x in parmLst[2:] )
         idxLst = [match.start() for match in re.finditer('"', startStr)]
-        matchStr = startStr[idxLst[0]+1:idxLst[1]] 
+        matchStr = startStr[idxLst[0]+1:idxLst[1]]
 
     rspStr  = ' numLinesInFile = {:4}.\n'.format( numLinesInFile )
     rspStr += '  numLinesToRtn = {:4}.\n'.format( numLinesToRtn  )
@@ -100,4 +100,4 @@ def writeFile(fName, inStr):
     with open(fName, 'a', encoding='utf-8') as f:
         f.write( inStr )
         f.flush()
-##########################################t###################################
+##############################################################################

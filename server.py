@@ -93,7 +93,7 @@ def handleClient( argDict ):
 
     rspStr = ''
     # Validate password
-    cfgRspStr, cfgDict = cfg.getCfgDict(uut)
+    cfgRspStr, cfgDict = cfg.getCfgDict(uut) # pylint: disable=W0612
     data = clientSocket.recv(1024)
     if data.decode() == cfgDict[uut]['myPwd']:
         passwordIsOk = True
@@ -183,7 +183,7 @@ def startServer(uut):
     styleDict, styleDictLock = sc.getMultiProcSharedDict()
 
     host = '0.0.0.0'  # Listen on all available interfaces
-    rspStr, cfgDict = cfg.getCfgDict(uut)
+    rspStr, cfgDict = cfg.getCfgDict(uut) # pylint: disable=W0612
     port = int(cfgDict[uut]['myPort'])
 
     serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -291,7 +291,7 @@ def getLanIp():
         s.close()
 
         return lanIp
-    except Exception as e:
+    except Exception as e: # pylint: disable=W0718
         print(e)
         return None
 #############################################################################
