@@ -28,24 +28,74 @@ def printSocketInfo(cSocket):
     print( ' rcvBufSize', rcvBufSize ) # 64K
 #############################################################################
 
-def getUserInput( uiToMainQ, aLock ):
+def sendCmd( tLock, cmdQ ):
     userInput = ''
     breakCmds = ['ks','close','rbt']
+    specialDict     = { 'clk':['up'],             # Special cmds.
+                        'spr':['dummy'] }
     while True:
-        with aLock:  # If I take just this out then after a command I get a
-                     # get a prompt printed, then the rsp printed then need
-                     # an extra return to get a prompt again.
+        with tLock:
             prompt = '\n Choice (m=menu, close) -> '
-            userInput = input( prompt )
-            uiToMainQ.put(userInput)
-            if  len(userInput.split()) > 0 \
-                and userInput.split()[0] in breakCmds:
-                print('getUserInput breaking')
-                break
-        time.sleep(.01)   # Gives 'main' a chance to run.
-        if 'up' in userInput:
-            time.sleep(1) # Gives 'main' a chance to run.
-                          # see pauseThread in tst dir
+
+            message = input( prompt )
+            msgLst  = message.split()
+    
+            if  'Clock'      in uut and len(msgLst) > 0 and \
+                msgLst[0].lstrip() in specialDict['clk']:
+                # Send special message.
+                cc.processSpecialCmd('uploadPic',clientSocket,msgLst)
+    
+            elif 'Sprinkler' in uut and len(msgLst) > 0 and \
+                msgLst[0].lstrip() in specialDict['spr']:
+                # Send special message.
+                cc.processSpecialCmd('dummy',clientSocket,msgLst)
+    
+            else:
+                # Send normal message.
+                clientSocket.send(message.encode())
+
+            cmdQ.put('readRsp')
+    
+        time.sleep(.01)
+        if  len(msgLst) > 0 and msgLst[0] in breakCmds:
+            break
+#############################################################################
+
+def readRsp( tLock, cmdQ ):
+
+    exitStrings = ['RE: close', 'RE: ks', 'RE: rbt']
+
+    while True:
+
+        message = cmdQ.get()    # Get/send msg from Q. Blocks.
+        with tLock:
+
+            rspStr = ''
+            readyToRead, _, _ = select.select([clientSocket],[],[],20)
+            if readyToRead:
+    
+                while readyToRead:
+    
+                    response = clientSocket.recv(1024)
+                    rspStr += response.decode()
+    
+                    # No more data if server is being terminated.
+                    if any(word in rspStr for word in exitStrings): # Exit.
+                        break
+    
+                    readyToRead,_, _=select.select([clientSocket],[],[],.01)
+    
+                    print('\n{}'.format(rspStr),flush = True)
+                time.sleep(.01)
+            else:
+                print( ' Timeout waiting for response.')
+
+        if any(word in rspStr for word in exitStrings): # Exit.
+            break
+
+    print('\n Client closing Socket')
+    time.sleep(.01)
+    clientSocket.close()
 #############################################################################
 
 if __name__ == '__main__':
@@ -54,7 +104,7 @@ if __name__ == '__main__':
     scriptName = arguments[0]
     userArgs   = arguments[1:]
     uut        = userArgs[0]
-    cfgRspStr, cfgDict    = cfg.getCfgDict(uut)
+    cfgRspStr, cfgDict = cfg.getCfgDict(uut)
 
     if 'ERROR' in cfgRspStr:
         print('\n Missing or (malformed) cfg file or missing cmd line arg')
@@ -86,78 +136,22 @@ if __name__ == '__main__':
     # Validate password
     pwd = cfgDict[uut]['myPwd']
     clientSocket.send(pwd.encode())
+    #clientSocket.send('xx'.encode())
     time.sleep(.5)
     response = clientSocket.recv(1024)
     rspStr   = response.decode()
     print('\n{}'.format(rspStr))
     pwdIsOk = 'Accepted' in rspStr
-    #######
 
-    threadLock  = threading.Lock()
-    Ui2MainQ    = queue.Queue()
-    inputThread = threading.Thread( target = getUserInput,
-                                    args   = (Ui2MainQ,threadLock),
-                                    daemon = True )
-    inputThread.start()
-
-    rspStr          = ''
-    specialDict     = { 'clk':['up'],             # Special cmds.
-                        'spr':['dummy'] }
-
-    longExeTimeMsgs = ['mus','ks','pc','up','dp'] # Cmds that take long.
-    exitStrings     = ['RE: close', 'RE: ks', 'RE: rbt']
-    earlyExitStrings= ['RE: ks','RE: rbt']
-
-    normWaitTime    = 0.6
-    longWaitTime    = 2.0
-
-    while pwdIsOk:
-
-        try:
-            message = Ui2MainQ.get()    # Get/send msg from Q.
-            waitTime = normWaitTime
-            if any(word in message for word in longExeTimeMsgs):
-                waitTime = longWaitTime
-        except queue.Empty:
-            print('q empty')            # No message to send.
-
-        else:
-            msgLst = message.split()
-
-            if  'Clock'      in uut and len(msgLst) > 0 and \
-                msgLst[0].lstrip() in specialDict['clk']:
-                # Send special message.
-                cc.processSpecialCmd('uploadPic',clientSocket,msgLst)
-
-            elif 'Sprinkler' in uut and len(msgLst) > 0 and \
-                msgLst[0].lstrip() in specialDict['spr']:
-                # Send special message.
-                cc.processSpecialCmd('dummy',clientSocket,msgLst)
-
-            else:
-                # Send normal message.
-                clientSocket.send(message.encode())
-
-        with threadLock: # Receive/print response.
-            readyToRead, _, _ = select.select([clientSocket],[],[],waitTime)
-            if readyToRead:
-                rspStr = ''
-
-                while readyToRead:
-
-                    response = clientSocket.recv(1024)
-                    rspStr += response.decode()
-
-                    # No more data if server is being terminated.
-                    if any(word in rspStr for word in earlyExitStrings): # Early exit.
-                        break
-
-                    readyToRead,_, _=select.select([clientSocket],[],[],.25)
-
-                print('\n{}'.format(rspStr),flush = True)
-
-        if any(word in rspStr for word in exitStrings): # Exit.
-            break
-
-    print('\n Client closing Socket')
-    clientSocket.close()
+    if pwdIsOk:
+        threadLock = threading.Lock()
+        commandQ   = queue.Queue()
+        sendCmdThread = threading.Thread( target = sendCmd,
+                                          args   = (threadLock,commandQ),
+                                          daemon = False )
+    
+        readRspThread = threading.Thread( target = readRsp,
+                                          args   = (threadLock,commandQ),
+                                          daemon = False )
+        sendCmdThread.start()
+        readRspThread.start()
