@@ -30,7 +30,11 @@ def printSocketInfo(cSocket):
 def sendCmd( uut, clientSock, tLock, cmdQ ):
 
     breakCmds   = ['ks','close','rbt']
-    specialDict = { 'clk':['up'], 'spr':['dummy'] }
+    specialDict = { 'clk':['up'], 'spr':['temp'] }
+
+    specialCmdLst = []
+    if 'Clock'    in uut: specialCmdLst = specialDict['clk']
+    if 'Sprinler' in uut: specialCmdLst = specialDict['spr']
 
     while True:
         with tLock:
@@ -44,15 +48,9 @@ def sendCmd( uut, clientSock, tLock, cmdQ ):
             if msgLst == []:
                 continue
 
-            if  'Clock'      in uut and len(msgLst) > 0 and \
-                msgLst[0].lstrip() in specialDict['clk']:
+            if  msgLst[0].lstrip() in specialCmdLst:
                 # Send special message.
-                cc.processSpecialCmd('uploadPic',clientSock,msgLst)
-
-            elif 'Sprinkler' in uut and len(msgLst) > 0 and \
-                msgLst[0].lstrip() in specialDict['spr']:
-                # Send special message.
-                cc.processSpecialCmd('dummy',clientSock,msgLst)
+                cc.processSpecialCmd(msgLst[0].lstrip(),clientSock,msgLst)
 
             else:
                 # Send normal message.
