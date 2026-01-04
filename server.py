@@ -17,7 +17,7 @@ def processCloseCmd( parmDict ):
     clientSocket      = parmDict['clientSocket']
     clientAddress     = parmDict['clientAddress']
 
-    rspStr = ' handleClient {} set loop break RE: close \n'.format(clientAddress)
+    rspStr = ' handleClient {} set loop break RE: CLOSE \n'.format(clientAddress)
     clientSocket.send(rspStr.encode()) # sends all even if >1024.
     time.sleep(1) # Required so .send happens before socket closed.
     # Breaks the loop, connection closes and thread stops.
@@ -120,6 +120,8 @@ def handleClient( argDict ):
             splitData  = dataDecode.split()
             cmd        = splitData[0]
 
+        except IndexError:
+            print('IndexError')
         except ConnectionResetError: # Windows throws this on (x).
             logStr += ' handleClient {} ConnectRstErr except in s.recv\n'.format(clientAddress)
             # Breaks the loop. handler/thread stops. Connection closed.

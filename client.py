@@ -34,9 +34,15 @@ def sendCmd( uut, clientSock, tLock, cmdQ ):
 
     while True:
         with tLock:
+            #print(' {} - got lock'.format('sendCmd'))
             prompt  = '\n Choice (m=menu, close) -> '
             message = input( prompt )
             msgLst  = message.split()
+
+            #print('*{}*'.format(message))
+            #print(msgLst )
+            if msgLst == []:
+                continue
 
             if  'Clock'      in uut and len(msgLst) > 0 and \
                 msgLst[0].lstrip() in specialDict['clk']:
@@ -52,23 +58,24 @@ def sendCmd( uut, clientSock, tLock, cmdQ ):
                 # Send normal message.
                 clientSock.send(message.encode())
 
-            cmdQ.put('readRsp')
+            cmdQ.put({ 'readRsp':True, 'shouldExit': msgLst[0] in breakCmds })
 
+        #print(' {} - release lock'.format('sendCmd'))
         time.sleep(.01)
         if  len(msgLst) > 0 and msgLst[0] in breakCmds:
+            #print(' {} - breaking.'.format('sendCmd'))
             break
 #############################################################################
 
 def readRsp( clientSock, tLock, cmdQ ):
 
-    exitStrings = ['RE: close', 'RE: ks', 'RE: rbt']
-
     while True:
 
         message = cmdQ.get()    # Get/send msg from Q. Blocks.
-        if message == 'readRsp':
+        if message['readRsp']:
             with tLock:
 
+                #print(' {} - got lock'.format('readRsp'))
                 rspStr = ''
                 readyToRead, _, _ = select.select([clientSock],[],[],20)
                 if readyToRead:
@@ -76,25 +83,28 @@ def readRsp( clientSock, tLock, cmdQ ):
                     while readyToRead:
 
                         response = clientSock.recv(1024)
+                        #print( ' {} - received {} bytes.'.format('readRsp',len(response)))
                         rspStr += response.decode()
 
                         # No more data if server is being terminated.
-                        if any(word in rspStr for word in exitStrings): # Exit.
+                        if message['shouldExit']:
                             break
 
                         readyToRead,_, _=select.select([clientSock],[],[],.01)
 
-                        print('\n{}'.format(rspStr),flush = True)
+                    print('\n{}'.format(rspStr),flush = True)
                     time.sleep(.01)
                 else:
                     print( ' Timeout waiting for response.')
 
-            if any(word in rspStr for word in exitStrings): # Exit.
+            if message['shouldExit']:
                 break
+            #print(' {} - release lock'.format('readRsp'))
         else:
             print( ' Unrecognized command in cmdQ.')
 
-    print('\n Client closing Socket')
+    #print(' {} - breaking.'.format('readRsp'))
+    print('\n {} - Client closing Socket'.format('readRsp'))
     time.sleep(.01)
     clientSock.close()
 #############################################################################
@@ -162,5 +172,9 @@ if __name__ == '__main__':
         sendCmdThread.start()
         readRspThread.start()
     else:
-        print(' Client closing Socket')
+        print('\n {} - Client closing Socket'.format('main'))
         clientSocket.close()
+
+    #print('\n {} - Client closing Socket'.format('main'))
+    #clientSocket.close()
+
