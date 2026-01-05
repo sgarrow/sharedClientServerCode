@@ -30,11 +30,11 @@ def printSocketInfo(cSocket):
 def sendCmd( uut, clientSock, tLock, cmdQ ):
 
     breakCmds   = ['ks','close','rbt']
-    specialDict = { 'clk':['up'], 'spr':['temp'] }
+    specialDict = { 'clk':['up'], 'spr':['tmp'] }
 
     specialCmdLst = []
     if 'Clock'    in uut: specialCmdLst = specialDict['clk']
-    if 'Sprinler' in uut: specialCmdLst = specialDict['spr']
+    if 'Sprinkler' in uut: specialCmdLst = specialDict['spr']
 
     while True:
         with tLock:
