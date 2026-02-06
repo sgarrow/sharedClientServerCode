@@ -6,7 +6,7 @@ import datetime        as dt
 # Version number of the shared files.
 # Calling it the version of the "server".
 # As opposed to the version number of the "app" which is in cmdVectors.py
-VER = ' v1.7.14 - 05-Feb-2026'
+VER = ' v1.7.15 - 05-Feb-2026'
 
 def readFileWrk(parmLst, inFile):
     usage = ' Usage rlf [ numLines [start ["matchStr"]] ].'
