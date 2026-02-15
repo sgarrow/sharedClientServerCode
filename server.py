@@ -30,8 +30,8 @@ def processKsAndRbtCmds( parmDict ):
     clientSocket      = parmDict['clientSocket']
     clientAddress     = parmDict['clientAddress']
     client2ServerCmdQ = parmDict['client2ServerCmdQ']
-    styleDict         = parmDict['styleDict']
-    styleDictLock     = parmDict['styleDictLock']
+    mpSharedDict      = parmDict['mpSharedDict']
+    mpSharedDictLock  = parmDict['mpSharedDictLock']
     #uut               = parmDict['uut']
     reboot            = parmDict['reboot']
 
@@ -43,7 +43,7 @@ def processKsAndRbtCmds( parmDict ):
         tmpStr = 'ks'
 
     # Client sending ks has to be terminated first, I don't know why.
-    rspStr += sc.ksCleanup(styleDict, styleDictLock)
+    rspStr += sc.ksCleanup(mpSharedDict, mpSharedDictLock)
     rspStr += '\n handleClient {} set loop break for self RE: {} \n'.\
               format(clientAddress,tmpStr)
     clientSocket.send(rspStr.encode()) # sends all even if > 1024.
@@ -78,8 +78,8 @@ def handleClient( argDict ):
     clientSocket      = argDict['clientSocket']
     clientAddress     = argDict['clientAddress']
     #client2ServerCmdQ = argDict['client2ServerCmdQ']
-    styleDict         = argDict['styleDict']
-    styleDictLock     = argDict['styleDictLock']
+    mpSharedDict      = argDict['mpSharedDict']
+    mpSharedDictLock  = argDict['mpSharedDictLock']
     uut               = argDict['uut']
 
     rebootArgDict = updateDict( argDict, reboot = True )
@@ -152,7 +152,7 @@ def handleClient( argDict ):
         # Process a normal message and send response back to this client.
         # (and look (try) for UNEXPECTED EVENT).
         else:
-            response = cv.vector(dataDecode, styleDict, styleDictLock)
+            response = cv.vector(dataDecode, mpSharedDict, mpSharedDictLock)
             try: # If user closed client window (x) instead of by close cmd.
                 clientSocket.send(response.encode())
             except BrokenPipeError:      # RPi throws this on (x).
@@ -182,7 +182,7 @@ def startServer(uut):
     logStr =  'Server started at {} \n'.format(cDT)
     fio.writeFile('serverLog.txt', logStr)
 
-    styleDict, styleDictLock = sc.getMultiProcSharedDict()
+    mpSharedDict, mpSharedDictLock = sc.getMultiProcSharedDictAndLock()
 
     host = '0.0.0.0'  # Listen on all available interfaces
     rspStr, cfgDict = cfg.getCfgDict(uut) # pylint: disable=W0612
@@ -240,9 +240,9 @@ def startServer(uut):
 
             argsDict = { 'clientSocket':       clientSocket,
                          'clientAddress':      clientAddress,
-                         'client2ServerCmdQ': clientToServerCmdQ,
-                         'styleDict':          styleDict,
-                         'styleDictLock':      styleDictLock,
+                         'client2ServerCmdQ':  clientToServerCmdQ,
+                         'mpSharedDict':       mpSharedDict,
+                         'mpSharedDictLock':   mpSharedDictLock,
                          'uut':                uut } 
 
             cThrd= th.Thread(target= handleClient,
