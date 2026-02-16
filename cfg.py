@@ -57,18 +57,19 @@ def getCfgDict(uut):
 #############################################################################
 
 if __name__ == '__main__':
-    import pprint as pp
-    import sys
-    arguments  = sys.argv
-    scriptName = arguments[0]
-    userArgs   = arguments[1:]
-    mnUut      = userArgs[0]
-
-    mnRspStr, mnCfgDict = getCfgDict(mnUut)
-
-    pp.pprint(mnCfgDict)
-
-    if 'ERROR' in mnRspStr:
-        print('\n Missing or (malformed) cfg file or missing cmd line arg')
-        print(' usage1: python client.py uut (uut = spr or clk).')
-        print(mnRspStr)
+    pass
+    #import pprint as pp
+    #import sys
+    #arguments  = sys.argv
+    #scriptName = arguments[0]
+    #userArgs   = arguments[1:]
+    #mnUut      = userArgs[0]
+    #
+    #mnRspStr, mnCfgDict = getCfgDict(mnUut)
+    #
+    #pp.pprint(mnCfgDict)
+    #
+    #if 'ERROR' in mnRspStr:
+    #    print('\n Missing or (malformed) cfg file or missing cmd line arg')
+    #    print(' usage1: python client.py uut (uut = spr or clk).')
+    #    print(mnRspStr)

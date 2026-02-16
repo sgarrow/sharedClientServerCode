@@ -172,7 +172,3 @@ if __name__ == '__main__':
     else:
         print('\n {} - Client closing Socket'.format('main'))
         clientSocket.close()
-
-    #print('\n {} - Client closing Socket'.format('main'))
-    #clientSocket.close()
-
