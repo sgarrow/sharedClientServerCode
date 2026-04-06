@@ -1,13 +1,13 @@
 import sys                    # For getting command line args.
 import os                     # For rebooting.
 import socket                 # For creating and managing sockets.
+import logging         as lg
 import threading       as th  # For handling multiple clients concurrently.
 import queue                  # For Killing Server.
 import time                   # For Killing Server and listThreads.
 import datetime        as dt  # For logging server start/stop times.
 import cmdVectors      as cv  # For vectoring to worker functions.
 import cfg                    # For port, pwd.
-import fileIO          as fio # For writing to server log files.
 import utils           as ut  # For access to openSocketsLst[].
 import serverCustomize as sc  # For stopping clock at shutdown (ks or rbt).
 #############################################################################
@@ -20,7 +20,6 @@ def processCloseCmd( parmDict ):
     rspStr = ' handleClient {} set loop break RE: CLOSE \n'.format(clientAddress)
     clientSocket.send(rspStr.encode()) # sends all even if >1024.
     time.sleep(1) # Required so .send happens before socket closed.
-    # Breaks the loop, connection closes and thread stops.
     ut.openSocketsLst.remove({'cs':clientSocket,'ca':clientAddress})
     return rspStr
 #############################################################################
@@ -55,6 +54,7 @@ def processKsAndRbtCmds( parmDict ):
             rspStr += ' handleClient {} set loop break for {} RE: {} \n'.\
                 format(clientAddress, el['ca'], tmpStr)
             el['cs'].send(rspStr.encode()) # sends all even if > 1024.
+            print(rspStr)
             time.sleep(1) # Required so .send happens before socket closed.
 
     rspStrNew  = rspStr.replace(   'ks', 'KS' ) # Prevent client break RE: rsl
@@ -73,14 +73,31 @@ def updateDict(inDict, **kwargs):
     return new
 #############################################################################
 
+def validatePwdSendRsp( uut, clientSocket, clientAddress ):
+
+    cfgRspStr, cfgDict = cfg.getCfgDict(uut) # pylint: disable=W0612
+    data = clientSocket.recv(1024)
+
+    if data.decode() == cfgDict[uut]['myPwd']:
+        passwordIsOk = True
+        rspStr = 'Accepted connection from: {}'.format(clientAddress)
+    else:
+        passwordIsOk = False
+        rspStr = 'Rejected connection from: {}'.format(clientAddress)
+
+    lg.info( rspStr )
+    clientSocket.send(rspStr.encode()) # sends all even if >1024.
+    return passwordIsOk
+#############################################################################
+
 def handleClient( argDict ):
 
     clientSocket      = argDict['clientSocket']
     clientAddress     = argDict['clientAddress']
     #client2ServerCmdQ = argDict['client2ServerCmdQ']
-    mpSharedDict      = argDict['mpSharedDict']
-    mpSharedDictLock  = argDict['mpSharedDictLock']
-    uut               = argDict['uut']
+    #mpSharedDict      = argDict['mpSharedDict']
+    #mpSharedDictLock  = argDict['mpSharedDictLock']
+    #uut               = argDict['uut']
 
     rebootArgDict = updateDict( argDict, reboot = True )
     noRebtArgDict = updateDict( argDict, reboot = False )
@@ -90,21 +107,10 @@ def handleClient( argDict ):
     'ks'   : { 'fun': processKsAndRbtCmds, 'prm': noRebtArgDict },
     'rbt'  : { 'fun': processKsAndRbtCmds, 'prm': rebootArgDict }
     }
-
-    rspStr = ''
-    # Validate password
-    cfgRspStr, cfgDict = cfg.getCfgDict(uut) # pylint: disable=W0612
-    data = clientSocket.recv(1024)
-    if data.decode() == cfgDict[uut]['myPwd']:
-        passwordIsOk = True
-        rspStr += ' Accepted connection from: {}\n'.format(clientAddress)
-    else:
-        passwordIsOk = False
-        rspStr += ' Rejected connection from: {}\n'.format(clientAddress)
-
-    fio.writeFile('serverLog.txt', rspStr)
-    clientSocket.send(rspStr.encode()) # sends all even if >1024.
-
+    passwordIsOk = validatePwdSendRsp( argDict['uut'],
+                                       clientSocket,
+                                       clientAddress
+                                     )
     if passwordIsOk:
         clientSocket.settimeout(3.0)   # Set .recv timeout - ks processing.
         ut.openSocketsLst.append({'cs':clientSocket,'ca':clientAddress})
@@ -112,7 +118,6 @@ def handleClient( argDict ):
     # The while condition is made false by the close, ks and rbt commands.
     while {'cs':clientSocket,'ca':clientAddress} in ut.openSocketsLst:
 
-        logStr = ''
         # Recieve msg from the client (and look (try) for UNEXPECTED EVENT).
         try: # In case user closed client window (x) instead of by close cmd.
             data       = clientSocket.recv(1024) # Broke if any msg > 1024.
@@ -121,66 +126,60 @@ def handleClient( argDict ):
             cmd        = splitData[0]
 
         except IndexError:
-            print('IndexError')
-        except ConnectionResetError: # Windows throws this on (x).
-            logStr += ' handleClient {} ConnectRstErr except in s.recv\n'.format(clientAddress)
-            # Breaks the loop. handler/thread stops. Connection closed.
-            ut.openSocketsLst.remove({'cs':clientSocket,'ca':clientAddress})
+            lg.exception('handleClient %s IndexError except in s.recv',clientAddress)
+            continue
+        except ConnectionResetError:   # Windows throws this on (x).
+            lg.exception('handleClient %s ConnectRstErr except in s.recv',clientAddress)
             break
         except ConnectionAbortedError: # Test-NetConnection xxx.xxx.x.xxx -p xxxx throws this
-            logStr += ' handleClient {} ConnectAbtErr except in s.recv\n'.format(clientAddress)
-            ut.openSocketsLst.remove({'cs':clientSocket,'ca':clientAddress})
+            lg.exception('handleClient %s ConnectAbtErr except in s.recv',clientAddress)
             break
         except socket.timeout: # Can't block on recv - won't be able to break
             continue           # loop if another client has issued a ks cmd.
 
         # Getting here means a command has been received.
-        logStr = ' handleClient {} received: {}\n'.\
-            format(clientAddress, dataDecode)
-        print(logStr)
+        lg.info( 'handleClient %s received: %s',clientAddress, dataDecode )
+        print(   'handleClient %s received: %s',clientAddress, dataDecode )
 
+        # Process close, ks, rbt cmds and send response back to this client.
         if cmd in vectorDict:
-            func    = vectorDict[cmd]['fun']
-            params  = vectorDict[cmd]['prm']
-            logStr += func(params)
+            func   = vectorDict[cmd]['fun']
+            params = vectorDict[cmd]['prm']
+            lg.info( func(params) )
 
         # Process up special message and send response back to this client.
-        elif cmd in sc.specialCmds: # up fPath numBytes
+        if cmd in sc.specialCmds: # up fPath numBytes
             response = sc.specialCmdHndlr( splitData, clientSocket )
             clientSocket.send(response.encode())
 
         # Process a normal message and send response back to this client.
-        # (and look (try) for UNEXPECTED EVENT).
         else:
-            response = cv.vector(dataDecode, mpSharedDict, mpSharedDictLock)
+            response = cv.vector( dataDecode,
+                                  argDict['mpSharedDict'],
+                                  argDict['mpSharedDictLock']
+                                )
             try: # If user closed client window (x) instead of by close cmd.
                 clientSocket.send(response.encode())
             except BrokenPipeError:      # RPi throws this on (x).
-                logStr +=' handleClient {} BrokePipeErr except in s.send\n'.\
-                    format(clientAddress)
-                # Breaks the loop. handler/thread stops. Connection closed.
-                ut.openSocketsLst.remove({'cs':clientSocket,'ca':clientAddress})
+                lg.exception('handleClient %s BrokePipeErr except in s.send',clientAddress)
+                break
 
-        if logStr != '':
-            fio.writeFile('serverLog.txt', logStr)
-
-    logStr = ' handleClient {} closing socket and breaking loop\n'.format(clientAddress)
-    fio.writeFile('serverLog.txt', logStr)
+    if {'cs':clientSocket,'ca':clientAddress} in ut.openSocketsLst:
+        ut.openSocketsLst.remove({'cs':clientSocket,'ca':clientAddress})
+    lg.info( 'handleClient %s closing socket and breaking loop\n',clientAddress)
     clientSocket.close()
 #############################################################################
 
-def printSocketInfo(sSocket):
+def logSocketInfo(sSocket):
     sndBufSize = sSocket.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)
     rcvBufSize = sSocket.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
-    rspStr = ' sndBufSize = {} \n rcvBufSize = {}\n'.format(sndBufSize,rcvBufSize)
-    return rspStr # 64K
+    lg.info( 'sndBufSize = %s, rcvBufSize = %s',sndBufSize,rcvBufSize)
 #############################################################################
 
 def startServer(uut):
     now = dt.datetime.now()
     cDT = '{}'.format(now.isoformat( timespec = 'seconds' ))
-    logStr =  'Server started at {} \n'.format(cDT)
-    fio.writeFile('serverLog.txt', logStr)
+    lg.info( 'Server started at %s', cDT)
 
     mpSharedDict, mpSharedDictLock = sc.getMultiProcSharedDictAndLock()
 
@@ -207,14 +206,10 @@ def startServer(uut):
 
     clientToServerCmdQ = queue.Queue() # So client can tell server to stop.
 
-    logStr  = 'Server listening on: {} {}\n'.format(host, port)
-    logStr += printSocketInfo(serverSocket)
-    fio.writeFile('serverLog.txt', logStr)
-    # sndBufSize =  16,384  # 0.25 * 64K
-    # rcvBufSize = 131,072  # 2.00 * 64K
+    lg.info( 'Server listening on: %s %s', host, port)
+    logSocketInfo(serverSocket)
 
     while True:
-        logStr = ''
         # See if any client has requested the server to halt (ks command).
         try:
             cmd = clientToServerCmdQ.get(timeout=.1)
@@ -236,7 +231,7 @@ def startServer(uut):
             continue           # break loop if a client has issued a ks cmd.
         else:
             # Yes, create a new thread to handle the new client.
-            logStr += 'Starting a new client handler thread.\n'
+            lg.info( 'Starting a new client handler thread.' )
 
             argsDict = { 'clientSocket':       clientSocket,
                          'clientAddress':      clientAddress,
@@ -250,16 +245,12 @@ def startServer(uut):
                              name  = 'handleClient-{}'.format(clientAddress))
             cThrd.start()
 
-        if logStr != '':
-            fio.writeFile('serverLog.txt', logStr)
-
-    logStr = 'Server breaking.\n'
+    lg.info( 'Server breaking.')
     serverSocket.close()
 
     now = dt.datetime.now()
     cDT = '{}'.format(now.isoformat( timespec = 'seconds' ))
-    logStr += 'Server stopped at {} \n'.format(cDT)
-    fio.writeFile('serverLog.txt', logStr)
+    lg.info( 'Server stopped at %s', cDT)
 
     if cmd == 'rbt':
         #print('rebooting')
@@ -297,23 +288,38 @@ def getLanIp():
         print(e)
         return None
 #############################################################################
+def main():
 
-if __name__ == '__main__':
+    lg.basicConfig(
+        filename='serverLog.txt',
+        level=lg.INFO,
+        format='%(asctime)s %(levelname)s %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    #lg.info(      'Test info message.'     )
+    #lg.warning(   'Test warning message.'  )
+    #lg.error(     'Test error message.'    )
+    #lg.critical(  'Test critical message.' )
+    #lg.exception( 'Test exception mesage.' )
+    #lg.debug(     'Test debug message.'    )
 
     arguments  = sys.argv
-    scriptName = arguments[0]
-    mnUut      = None            # pylint: disable=C0103
-    mnCfgDict  = None            # pylint: disable=C0103
+    #scriptName = arguments[0]
+    mnUut      = None                      # pylint: disable=C0103
+    mnCfgDict  = None                      # pylint: disable=C0103
     if len(arguments) >= 2:
         userArgs   = arguments[1:]
         mnUut      = userArgs[0]
         mnCfgDict  = cfg.getCfgDict(mnUut) # pylint: disable=C0103
 
     if mnUut is None or mnCfgDict is None:
-        print('  Server not started.')
-        print('  Missing or (malformed) cfg file or')
-        print('  Missing or (malformed) cmd line arg')
-        print('  usage1: python server.py uut (uut = spr, clk, clk2).')
+        msg  = ''
+        msg += 'Server not started.'
+        msg += '\nMissing or (malformed) cfg file or'
+        msg += '\nMissing or (malformed) cmd line arg'
+        msg += '\nusage1: python server.py uut (uut = spr, clk, clk2).\n'
+        print( msg )
+        lg.error( msg )
         sys.exit()
     else:
         sc.hwInit()
@@ -321,3 +327,7 @@ if __name__ == '__main__':
         sc.displayLanIp(mnLanIp)
 
     startServer(mnUut)
+#############################################################################
+
+if __name__ == '__main__':
+    main()

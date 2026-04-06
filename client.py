@@ -54,19 +54,24 @@ def sendCmd( uut, clientSock, tLock, cmdQ ):
 
             else:
                 # Send normal message.
-                clientSock.send(message.encode())
+                try:
+                    clientSock.send(message.encode())
+                    exceptionOccured = False
+                    cmdQ.put({ 'readRsp':True, 'shouldExit': msgLst[0] in breakCmds })
+                except OSError:
+                    exceptionOccured = True
 
-            cmdQ.put({ 'readRsp':True, 'shouldExit': msgLst[0] in breakCmds })
 
         #print(' {} - release lock'.format('sendCmd'))
         time.sleep(.01)
-        if  len(msgLst) > 0 and msgLst[0] in breakCmds:
+        if  (len(msgLst) > 0 and msgLst[0] in breakCmds) or exceptionOccured:
             #print(' {} - breaking.'.format('sendCmd'))
             break
 #############################################################################
 
 def readRsp( clientSock, tLock, cmdQ ):
 
+    response = '?'
     while True:
 
         message = cmdQ.get()    # Get/send msg from Q. Blocks.
@@ -80,7 +85,12 @@ def readRsp( clientSock, tLock, cmdQ ):
 
                     while readyToRead:
 
-                        response = clientSock.recv(1024)
+                        try:
+                            response = clientSock.recv(1024)
+                        except (ConnectionAbortedError,ConnectionResetError): #ks
+                            message['shouldExit'] = True
+                            print( response )
+
                         #print( ' {} - received {} bytes.'.format('readRsp',len(response)))
                         rspStr += response.decode()
 
@@ -124,8 +134,8 @@ if __name__ == '__main__':
     # Each client will connect to the server with a new address.
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    #connectType = input(' same, lan, internet (s,l,i) -> ')
-    connectType  = 'l' # pylint: disable=C0103
+    connectType = input(' same, lan, internet (s,l,i) -> ')
+    #connectType  = 'l' # pylint: disable=C0103
     connectDict  = {'s':'localhost',
                     'l':cfgDict[mnUut]['myLan'],
                     'i':cfgDict[mnUut]['myIP']}
