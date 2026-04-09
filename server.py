@@ -1,7 +1,7 @@
 import sys                    # For getting command line args.
 import os                     # For rebooting.
 import socket                 # For creating and managing sockets.
-import logging         as lg
+import logging
 import threading       as th  # For handling multiple clients concurrently.
 import queue                  # For Killing Server.
 import time                   # For Killing Server and listThreads.
@@ -10,6 +10,7 @@ import cmdVectors      as cv  # For vectoring to worker functions.
 import cfg                    # For port, pwd.
 import utils           as ut  # For access to openSocketsLst[].
 import serverCustomize as sc  # For stopping clock at shutdown (ks or rbt).
+lg = logging.getLogger(__name__)
 #############################################################################
 
 def processCloseCmd( parmDict ):
@@ -43,7 +44,7 @@ def processKsAndRbtCmds( parmDict ):
 
     # Client sending ks has to be terminated first, I don't know why.
     rspStr += sc.ksCleanup(mpSharedDict, mpSharedDictLock)
-    rspStr += '\n handleClient {} set loop break for self RE: {} \n'.\
+    rspStr += '\nhandleClient {} set loop break for self RE: {}'.\
               format(clientAddress,tmpStr)
     clientSocket.send(rspStr.encode()) # sends all even if > 1024.
     time.sleep(1.5) # Required so .send happens before socket closed.
@@ -51,10 +52,9 @@ def processKsAndRbtCmds( parmDict ):
     # Breaks the ALL loops, ALL connections close and ALL thread stops.
     for el in ut.openSocketsLst:
         if el['ca'] != clientAddress:
-            rspStr += ' handleClient {} set loop break for {} RE: {} \n'.\
+            rspStr += '\nhandleClient {} set loop break for {} RE: {}'.\
                 format(clientAddress, el['ca'], tmpStr)
             el['cs'].send(rspStr.encode()) # sends all even if > 1024.
-            print(rspStr)
             time.sleep(1) # Required so .send happens before socket closed.
 
     rspStrNew  = rspStr.replace(   'ks', 'KS' ) # Prevent client break RE: rsl
@@ -139,7 +139,7 @@ def handleClient( argDict ):
 
         # Getting here means a command has been received.
         lg.info( 'handleClient %s received: %s',clientAddress, dataDecode )
-        print(   'handleClient %s received: %s',clientAddress, dataDecode )
+        #print(   'handleClient {} received: {}'.format(clientAddress, dataDecode ))
 
         # Process close, ks, rbt cmds and send response back to this client.
         if cmd in vectorDict:
@@ -166,7 +166,7 @@ def handleClient( argDict ):
 
     if {'cs':clientSocket,'ca':clientAddress} in ut.openSocketsLst:
         ut.openSocketsLst.remove({'cs':clientSocket,'ca':clientAddress})
-    lg.info( 'handleClient %s closing socket and breaking loop\n',clientAddress)
+    lg.info( 'handleClient %s close socket. break loop',clientAddress)
     clientSocket.close()
 #############################################################################
 
@@ -285,15 +285,15 @@ def getLanIp():
 
         return lanIp
     except Exception as e: # pylint: disable=W0718
-        print(e)
+        lg.exception('An error occurred: %s', e)
         return None
 #############################################################################
 def main():
 
-    lg.basicConfig(
+    logging.basicConfig(
         filename='serverLog.txt',
-        level=lg.INFO,
-        format='%(asctime)s %(levelname)s %(message)s',
+        level=logging.INFO,
+        format='%(asctime)s %(processName)s %(name)s %(levelname)s %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     #lg.info(      'Test info message.'     )
@@ -302,6 +302,11 @@ def main():
     #lg.critical(  'Test critical message.' )
     #lg.exception( 'Test exception mesage.' )
     #lg.debug(     'Test debug message.'    )
+
+    #try:
+    #    1/0
+    #except ZeroDivisionError:
+    #    lg.exception('div by zero exception')
 
     arguments  = sys.argv
     #scriptName = arguments[0]
@@ -318,10 +323,11 @@ def main():
         msg += '\nMissing or (malformed) cfg file or'
         msg += '\nMissing or (malformed) cmd line arg'
         msg += '\nusage1: python server.py uut (uut = spr, clk, clk2).\n'
-        print( msg )
+        #print( msg )
         lg.error( msg )
         sys.exit()
     else:
+        lg.info( 'Preparing to start server.' )
         sc.hwInit()
         mnLanIp = getLanIp()
         sc.displayLanIp(mnLanIp)

@@ -6,7 +6,7 @@ import datetime        as dt
 # Version number of the shared files.
 # Calling it the version of the "server".
 # As opposed to the version number of the "app" which is in cmdVectors.py
-VER = 'v1.7.39 - 05-Apr-2026'
+VER = 'v1.8.0 - 08-Apr-2026'
 
 def readFileWrk(parmLst, inFile):
     usage = ' Usage rlf [ numLines [start ["matchStr"]] ].'
@@ -96,8 +96,9 @@ def clearFile(parmLst):
     return [rspStr]
 #############################################################################
 
-def writeFile(fName, inStr):
-    with open(fName, 'a', encoding='utf-8') as f:
-        f.write( inStr )
-        f.flush()
+# No longer used, subsumed by python logger functionality.
+#def writeFile(fName, inStr):
+#    with open(fName, 'a', encoding='utf-8') as f:
+#        f.write( inStr )
+#        f.flush()
 ##############################################################################

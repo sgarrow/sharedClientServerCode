@@ -37,6 +37,7 @@ def sendCmd( uut, clientSock, tLock, cmdQ ):
     if 'Sprinkler' in uut: specialCmdLst = specialDict['spr']
 
     while True:
+        exceptionOccured = False
         with tLock:
             #print(' {} - got lock'.format('sendCmd'))
             prompt  = '\n Choice (m=menu, close) -> '
@@ -56,7 +57,6 @@ def sendCmd( uut, clientSock, tLock, cmdQ ):
                 # Send normal message.
                 try:
                     clientSock.send(message.encode())
-                    exceptionOccured = False
                     cmdQ.put({ 'readRsp':True, 'shouldExit': msgLst[0] in breakCmds })
                 except OSError:
                     exceptionOccured = True
