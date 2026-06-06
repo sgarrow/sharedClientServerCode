@@ -21,7 +21,8 @@ def processCloseCmd( parmDict ):
     rspStr = ' handleClient {} set loop break RE: CLOSE \n'.format(clientAddress)
     clientSocket.send(rspStr.encode()) # sends all even if >1024.
     time.sleep(1) # Required so .send happens before socket closed.
-    ut.openSocketsLst.remove({'cs':clientSocket,'ca':clientAddress})
+    with ut.openSocketsLock:
+        ut.openSocketsLst.remove({'cs':clientSocket,'ca':clientAddress})
     return rspStr
 #############################################################################
 
@@ -113,10 +114,14 @@ def handleClient( argDict ):
                                        clientSocket,
                                        clientAddress
                                      )
-    if passwordIsOk:
-        clientSocket.settimeout(3.0)   # Set .recv timeout - ks processing.
-        with ut.openSocketsLock:
-            ut.openSocketsLst.append({'cs':clientSocket,'ca':clientAddress})
+    if not passwordIsOk:
+        # If password validation fails close socket.
+        clientSocket.close()
+        return
+
+    clientSocket.settimeout(3.0)   # Set .recv timeout - ks processing.
+    with ut.openSocketsLock:
+        ut.openSocketsLst.append({'cs':clientSocket,'ca':clientAddress})
 
     while True:
         with ut.openSocketsLock:
