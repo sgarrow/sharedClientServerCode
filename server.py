@@ -50,17 +50,19 @@ def processKsAndRbtCmds( parmDict ):
     time.sleep(1.5) # Required so .send happens before socket closed.
 
     # Breaks the ALL loops, ALL connections close and ALL thread stops.
-    for el in ut.openSocketsLst:
-        if el['ca'] != clientAddress:
-            rspStr += '\nhandleClient {} set loop break for {} RE: {}'.\
-                format(clientAddress, el['ca'], tmpStr)
-            el['cs'].send(rspStr.encode()) # sends all even if > 1024.
-            time.sleep(1) # Required so .send happens before socket closed.
+    with ut.openSocketsLock:
+        for el in ut.openSocketsLst:
+            if el['ca'] != clientAddress:
+                rspStr += '\nhandleClient {} set loop break for {} RE: {}'.\
+                    format(clientAddress, el['ca'], tmpStr)
+                el['cs'].send(rspStr.encode()) # sends all even if > 1024.
+                time.sleep(1) # Required so .send happens before socket closed.
 
     rspStrNew  = rspStr.replace(   'ks', 'KS' ) # Prevent client break RE: rsl
     rspStrNew2 = rspStrNew.replace('rbt','RBT') # Prevent client break RE: rsl
 
-    ut.openSocketsLst.clear()     # Causes all clients to terminate.
+    with ut.openSocketsLock:
+        ut.openSocketsLst.clear() # Causes all clients to terminate.
     client2ServerCmdQ.put(tmpStr) # Causes the server to terminate and may
                                   # also cause the RPi to reboot.
 
@@ -113,10 +115,14 @@ def handleClient( argDict ):
                                      )
     if passwordIsOk:
         clientSocket.settimeout(3.0)   # Set .recv timeout - ks processing.
-        ut.openSocketsLst.append({'cs':clientSocket,'ca':clientAddress})
+        with ut.openSocketsLock:
+            ut.openSocketsLst.append({'cs':clientSocket,'ca':clientAddress})
 
-    # The while condition is made false by the close, ks and rbt commands.
-    while {'cs':clientSocket,'ca':clientAddress} in ut.openSocketsLst:
+    while True:
+        with ut.openSocketsLock:
+            # ks, rbt and close commands remove clients from the list.
+            if {'cs':clientSocket,'ca':clientAddress} not in ut.openSocketsLst:
+                break
 
         # Recieve msg from the client (and look (try) for UNEXPECTED EVENT).
         try: # In case user closed client window (x) instead of by close cmd.
@@ -164,8 +170,9 @@ def handleClient( argDict ):
                 lg.exception('handleClient %s BrokePipeErr except in s.send',clientAddress)
                 break
 
-    if {'cs':clientSocket,'ca':clientAddress} in ut.openSocketsLst:
-        ut.openSocketsLst.remove({'cs':clientSocket,'ca':clientAddress})
+    with ut.openSocketsLock:
+        if {'cs':clientSocket,'ca':clientAddress} in ut.openSocketsLst:
+            ut.openSocketsLst.remove({'cs':clientSocket,'ca':clientAddress})
     lg.info( 'handleClient %s close socket. break loop',clientAddress)
     clientSocket.close()
 #############################################################################

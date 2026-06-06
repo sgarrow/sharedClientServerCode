@@ -1,6 +1,11 @@
 import threading as th # For handling multiple clients concurrently.
 openSocketsLst = []    # Needed for processing close and ks commands.
 procPidDict = {'clockCntrProc': None, 'lcdUpdateProc': None}
+
+# The openSocketsLst is accessed and modified from multiple threads.
+# The membership check and removal operations must be atomic.
+# This lock is used to provide synchronization.
+openSocketsLock = th.Lock()
 #############################################################################
 
 def getActThrds():
