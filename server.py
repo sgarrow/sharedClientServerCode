@@ -161,19 +161,24 @@ def handleClient( argDict ):
         # Process up special message and send response back to this client.
         if cmd in sc.specialCmds: # up fPath numBytes
             response = sc.specialCmdHndlr( splitData, clientSocket )
-            clientSocket.send(response.encode())
+            # DON'T send response immediately - specialCmdHndlr handles the
+            # client.  The client won't send another command until the file
+            # upload completes. Skip the normal response send,
+            # go back to top of loop
+            continue
+            #clientSocket.send(response.encode())
 
         # Process a normal message and send response back to this client.
-        else:
-            response = cv.vector( dataDecode,
-                                  argDict['mpSharedDict'],
-                                  argDict['mpSharedDictLock']
-                                )
-            try: # If user closed client window (x) instead of by close cmd.
-                clientSocket.send(response.encode())
-            except BrokenPipeError:      # RPi throws this on (x).
-                lg.exception('handleClient %s BrokePipeErr except in s.send',clientAddress)
-                break
+        # Removed the else that used to be here RE: the newly added continue, above.
+        response = cv.vector( dataDecode,
+                              argDict['mpSharedDict'],
+                              argDict['mpSharedDictLock']
+                            )
+        try: # If user closed client window (x) instead of by close cmd.
+            clientSocket.send(response.encode())
+        except BrokenPipeError:      # RPi throws this on (x).
+            lg.exception('handleClient %s BrokePipeErr except in s.send',clientAddress)
+            break
 
     with ut.openSocketsLock:
         if {'cs':clientSocket,'ca':clientAddress} in ut.openSocketsLst:
