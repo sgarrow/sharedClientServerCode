@@ -51,8 +51,10 @@ def sendCmd( uut, clientSock, tLock, cmdQ ):
 
             if  msgLst[0].lstrip() in specialCmdLst:
                 # Send special message.
+                print(' Reached cc.processSpecialCmd')
                 cc.processSpecialCmd(msgLst[0].lstrip(),clientSock,msgLst)
-
+                print(' Reached continue')
+                continue  # Skip cmdQ.put, go back to show next prompt
             else:
                 # Send normal message.
                 try:
