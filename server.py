@@ -59,15 +59,15 @@ def processKsAndRbtCmds( parmDict ):
                 el['cs'].send(rspStr.encode()) # sends all even if > 1024.
                 time.sleep(1) # Required so .send happens before socket closed.
 
-    rspStrNew  = rspStr.replace(   'ks', 'KS' ) # Prevent client break RE: rsl
-    rspStrNew2 = rspStrNew.replace('rbt','RBT') # Prevent client break RE: rsl
+    #rspStrNew  = rspStr.replace(   'ks', 'KS' ) # Prevent client break RE: rsl
+    #rspStrNew2 = rspStrNew.replace('rbt','RBT') # Prevent client break RE: rsl
 
     with ut.openSocketsLock:
         ut.openSocketsLst.clear() # Causes all clients to terminate.
     client2ServerCmdQ.put(tmpStr) # Causes the server to terminate and may
                                   # also cause the RPi to reboot.
 
-    return rspStrNew2
+    return rspStr
 #############################################################################
 
 def updateDict(inDict, **kwargs):

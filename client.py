@@ -53,13 +53,13 @@ def sendCmd( uut, clientSock, tLock, cmdQ ):
                 # Send special message.
                 cc.processSpecialCmd(msgLst[0].lstrip(),clientSock,msgLst)
                 continue  # Skip cmdQ.put, go back to show next prompt
-            else:
-                # Send normal message.
-                try:
-                    clientSock.send(message.encode())
-                    cmdQ.put({ 'readRsp':True, 'shouldExit': msgLst[0] in breakCmds })
-                except OSError:
-                    exceptionOccured = True
+
+            # Send normal message (if not continued ... from above.
+            try:
+                clientSock.send(message.encode())
+                cmdQ.put({ 'readRsp':True, 'shouldExit': msgLst[0] in breakCmds })
+            except OSError:
+                exceptionOccured = True
 
 
         #print(' {} - release lock'.format('sendCmd'))
