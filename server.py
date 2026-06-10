@@ -130,6 +130,11 @@ def handleClient( argDict ):
                 break
 
         # Recieve msg from the client (and look (try) for UNEXPECTED EVENT).
+        # NOTE: All text commands must fit in 1024 bytes. This is safe because:
+        # - Valid commands are: close, ks, rbt, gvn, gas, sds, etc. (< 5 chars each)
+        # - Arguments are bounded (file paths sent separately in binary stream)
+        # - Worst-case command is ~50 bytes
+
         try: # In case user closed client window (x) instead of by close cmd.
             data       = clientSocket.recv(1024) # Broke if any msg > 1024.
             dataDecode = data.decode()
