@@ -313,22 +313,34 @@ def getLanIp():
 def main():
 
     logging.basicConfig(
-        filename='serverLog.txt',
-        level=logging.INFO,
+        filename='logFile.txt',
+        level=logging.DEBUG,
         format='%(asctime)s %(processName)s %(name)s %(levelname)s %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
-    #lg.info(      'Test info message.'     )
-    #lg.warning(   'Test warning message.'  )
-    #lg.error(     'Test error message.'    )
-    #lg.critical(  'Test critical message.' )
-    #lg.exception( 'Test exception mesage.' )
-    #lg.debug(     'Test debug message.'    )
 
-    #try:
-    #    1/0
-    #except ZeroDivisionError:
-    #    lg.exception('div by zero exception')
+    ### Test logging functionality
+    lg.info(    '     ** Test log info     msg.'   )
+    lg.warning(    '  ** Test log warning  msg.'   )
+    lg.error(    '    ** Test log error    msg.'   )
+    lg.critical(    ' ** Test log critical msg.'   )
+    lg.debug(    '    ** Test log debug    msg.'   )
+
+    try:
+        1/0
+    except ZeroDivisionError as e:
+        # Output to terminal.
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        print(' Error Type  : {}'.format(exc_type.__name__))
+        print(' File  Name  : {}'.format(exc_tb.tb_frame.f_code.co_filename))
+        print(' Line  Number: {}'.format(exc_tb.tb_lineno))
+
+        # Output to logFile.txt via logger.
+        lg.exception('    ** Test log exc      msg:\n %s\n', str(e))
+
+
+    #1/0 # Output to exceptionFile.txt via file redirect via cron.
+    ###############################
 
     arguments  = sys.argv
     #scriptName = arguments[0]
