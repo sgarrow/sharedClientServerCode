@@ -315,7 +315,7 @@ def main():
     logging.basicConfig(
         filename='logFile.txt',
         level=logging.DEBUG,
-        format='%(asctime)s %(processName)s %(name)s %(levelname)s %(message)s',
+        format='%(asctime)s %(processName)s %(name)s %(levelname)s \n%(message)s \n',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
@@ -330,10 +330,10 @@ def main():
         1/0
     except ZeroDivisionError as e:
         # Output to terminal.
-        exc_type, exc_obj, exc_tb = sys.exc_info()
-        print(' Error Type  : {}'.format(exc_type.__name__))
-        print(' File  Name  : {}'.format(exc_tb.tb_frame.f_code.co_filename))
-        print(' Line  Number: {}'.format(exc_tb.tb_lineno))
+        excType, excObj, excTb = sys.exc_info() # pylint: disable=W0612
+        print(' Error Type  : {}'.format(excType.__name__))
+        print(' File  Name  : {}'.format(excTb.tb_frame.f_code.co_filename))
+        print(' Line  Number: {}'.format(excTb.tb_lineno))
 
         # Output to logFile.txt via logger.
         lg.exception('    ** Test log exc      msg:\n %s\n', str(e))
