@@ -5,7 +5,7 @@ import datetime as dt
 # Version number of the shared files.
 # Calling it the version of the "server".
 # As opposed to the version number of the "app" which is in cmdVectors.py
-VER = 'v1.8.11 - 11-Aug-2026'
+VER = 'v1.8.12 - 12-Aug-2026'
 
 def splitList(parmLst):
 
@@ -91,9 +91,6 @@ Example parameters:
     ###########################
 
     rspStr, numStrLst, searchStrLst = splitList(parmLst)
-    print('starting parm list', parmLst      )
-    print('end srch parm list', searchStrLst )
-    print('end num  parm list', numStrLst    )
 
     if 'ERROR' in rspStr:
         return rspStr + usage
@@ -135,7 +132,6 @@ Example parameters:
         else:
             # Loop control when no match string supplied.
             numMatchesToRtn = numIntLst[0]
-        print('numMatchesToRtn 1 = ', numMatchesToRtn)
 
     else:                       # No match strings supplied.
         if lenNumStrLst > 2:
@@ -163,35 +159,33 @@ Example parameters:
     ###########################
 
     rspStr  = ' numLinesInFile  = {:4}.\n'.format( numLinesInFile  )
-    rspStr += ' numMatchesToRtn = {:4}.\n'.format( numMatchesToRtn )
-    rspStr += '  numLinesToRtn  = {:4}.\n'.format( numLinesToRtn   )
-    rspStr += '       startIdx  = {:4}.\n'.format( startIdx        )
-    rspStr += '         endIdx  = {:4}.\n'.format( endIdx          )
-    rspStr += '   searchStrLst  = {}.\n\n'.format( searchStrLst    )
 
     if lenSearchStrLst > 0:
-        for matchStr in searchStrLst:
-            matchDict = {}
-            ii        = 0
-            prevLine  = '\n'
-            prevIdx   = -1
-            with open( inFile, 'r',encoding='utf-8') as f:
-                for currIdx,currLine in enumerate(f):
-                    if startIdx <= currIdx <= endIdx:
-                        if matchStr in currLine:
-                            dicStr  = ' {:4} - {}'.format(prevIdx,prevLine)
-                            dicStr += ' {:4} - {}\n'.format(currIdx,currLine)
-                            matchDict[ii] = dicStr
-                            ii += 1
-                        prevIdx  = currIdx
-                        prevLine = currLine
+        matchDict = {} # Move outside loop, or better, remove loop and ...
+        ii        = 0
+        prevLine  = '\n'
+        prevIdx   = -1
+        with open( inFile, 'r',encoding='utf-8') as f:
+            for currIdx,currLine in enumerate(f):
+                if startIdx <= currIdx <= endIdx:
+                    if any(el in currLine for el in searchStrLst):
+                    #if matchStr in currLine:           # better ... if any ...
+                        dicStr  = ' {:4} - {}'.format(prevIdx,prevLine)
+                        dicStr += ' {:4} - {}\n'.format(currIdx,currLine)
+                        matchDict[ii] = dicStr
+                        ii += 1
+                    prevIdx  = currIdx
+                    prevLine = currLine
 
-                if numMatchesToRtn == 'all':
-                    numMatchesToRtn = len(matchDict)
+        if numMatchesToRtn == 'all':
+            numMatchesToRtn = len(matchDict)
 
-                for ii in range( max(len(matchDict)-numMatchesToRtn-1,0),
-                                 len(matchDict) - 1 ):
-                    rspStr += matchDict[ii]
+        startIdx = max( len( matchDict ) - numMatchesToRtn, 0 )
+        endIdx   = len( matchDict )
+        for ii in range( startIdx, endIdx ):
+            rspStr += matchDict[ii]
+        rspStr += ' Returned the last {} of {} matches found.'.\
+            format(endIdx-startIdx, len(matchDict))
 
     else:
         with open( inFile, 'r',encoding='utf-8') as f:
