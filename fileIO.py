@@ -5,7 +5,7 @@ import datetime as dt
 # Version number of the shared files.
 # Calling it the version of the "server".
 # As opposed to the version number of the "app" which is in cmdVectors.py
-VER = 'v1.8.12 - 12-Aug-2026'
+VER = 'v1.8.13 - 12-Aug-2026'
 
 def splitList(parmLst):
 
@@ -17,7 +17,8 @@ def splitList(parmLst):
     # end srch parm list ['opened at']
     # end num parm list  ['3']
     #
-    # starting parm list ['3', '"opened', 'at"', '4', '"hello"', '"multi', 'word', 'parm"', '9']
+    # starting parm list ['3', '"opened', 'at"', '4', '"hello"',
+    #                     '"multi', 'word', 'parm"', '9']
     # end srch parm list ['opened at', 'hello', 'multi word parm']
     # end num parm list  ['3', '4', '9']
 
@@ -77,9 +78,8 @@ Example parameters:
  
  "match"   - return all lines with    "match" in it.
  3 "match" - return last 3 lines with "match" in it.
- "match", 3 - return last 3 lines with "match" in it.
-
- Note: '"match this"' (two words) not supported (too many parms).
+ "match" 3 - return last 3 lines with "match" in it.
+ "match" "this" 3 - return last 3 lines with "match" or "this"in it.
 
 '''
     # Get total Lines in file.
@@ -92,7 +92,7 @@ Example parameters:
 
     rspStr, numStrLst, searchStrLst = splitList(parmLst)
 
-    if 'ERROR' in rspStr:
+    if 'ERROR' in rspStr: # Empty or nested double quotes.
         return rspStr + usage
 
     isAllStrsAllDigits = all( s.isdigit() for s in numStrLst)
@@ -159,9 +159,8 @@ Example parameters:
     ###########################
 
     rspStr  = ' numLinesInFile  = {:4}.\n'.format( numLinesInFile  )
-
     if lenSearchStrLst > 0:
-        matchDict = {} # Move outside loop, or better, remove loop and ...
+        matchDict = {}
         ii        = 0
         prevLine  = '\n'
         prevIdx   = -1
@@ -169,7 +168,6 @@ Example parameters:
             for currIdx,currLine in enumerate(f):
                 if startIdx <= currIdx <= endIdx:
                     if any(el in currLine for el in searchStrLst):
-                    #if matchStr in currLine:           # better ... if any ...
                         dicStr  = ' {:4} - {}'.format(prevIdx,prevLine)
                         dicStr += ' {:4} - {}\n'.format(currIdx,currLine)
                         matchDict[ii] = dicStr
@@ -219,21 +217,7 @@ def clearFile(parmLst):
     return [rspStr]
 #############################################################################
 
-# No longer used, subsumed by python logger functionality.
-#def writeFile(fName, inStr):
-#    with open(fName, 'a', encoding='utf-8') as f:
-#        f.write( inStr )
-#        f.flush()
-##############################################################################
-
 if __name__ == '__main__':
-
-    #            - return 5 lines starting from - 5th line from bottom.
-    # 3          - return 3 lines starting from - 3rd line from bottom.
-    # 3, 4       - return 3 lines starting from - line 4 (0 is 1st line).
-    #
-    # "match"    - return all lines with    "match" in it.
-    # 3, "match" - return last 3 lines with "match" in it.
 
     while True:
 
@@ -242,7 +226,7 @@ if __name__ == '__main__':
         inputStr = input( '--> ')
         inputWords = inputStr.split()
 
-        if inputWords == []:       # In case user entered just spaces.
+        if inputWords == []: # In case user entered just spaces.
             print( 'no command entered' )
             continue
 
@@ -259,7 +243,6 @@ if __name__ == '__main__':
         if len(optArgsStr) > 0:
             params[1] = optArgsStr
 
-        #print(params)
         rsp = readFile( params )
         print()
         print(rsp[0])
