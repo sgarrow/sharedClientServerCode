@@ -5,7 +5,6 @@ import logging
 import threading       as th  # For handling multiple clients concurrently.
 import queue                  # For Killing Server.
 import time                   # For Killing Server and listThreads.
-import datetime        as dt  # For logging server start/stop times.
 import cmdVectors      as cv  # For vectoring to worker functions.
 import cfg                    # For port, pwd.
 import utils           as ut  # For access to openSocketsLst[].
@@ -154,7 +153,9 @@ def handleClient( argDict ):
             continue           # loop if another client has issued a ks cmd.
 
         # Getting here means a command has been received.
-        lg.info( 'handleClient %s received: %s',clientAddress, dataDecode )
+        searchStrLst = ['rlf', 'ref']
+        if not any(el in splitData for el in searchStrLst): # Don't log reading log.
+            lg.info( 'handleClient %s received: %s',clientAddress, dataDecode )
         #print(   'handleClient {} received: {}'.format(clientAddress, dataDecode ))
 
         # Process close, ks, rbt cmds and send response back to this client.
@@ -199,9 +200,7 @@ def logSocketInfo(sSocket):
 #############################################################################
 
 def startServer(uut):
-    now = dt.datetime.now()
-    cDT = '{}'.format(now.isoformat( timespec = 'seconds' ))
-    lg.info( 'Server started at %s', cDT)
+    lg.info( 'Server started')
 
     mpSharedDict, mpSharedDictLock = sc.getMultiProcSharedDictAndLock()
 
@@ -270,9 +269,7 @@ def startServer(uut):
     lg.info( 'Server breaking.')
     serverSocket.close()
 
-    now = dt.datetime.now()
-    cDT = '{}'.format(now.isoformat( timespec = 'seconds' ))
-    lg.info( 'Server stopped at %s', cDT)
+    lg.info( 'Server stopped ***********************************')
 
     if cmd == 'rbt':
         #print('rebooting')
@@ -320,25 +317,25 @@ def main():
     )
 
     ### Test logging functionality
-    lg.info(    '     ** Test log info     msg.'   )
-    lg.warning(    '  ** Test log warning  msg.'   )
-    lg.error(    '    ** Test log error    msg.'   )
-    lg.critical(    ' ** Test log critical msg.'   )
-    lg.debug(    '    ** Test log debug    msg.'   )
-
-    try:
-        1/0
-    except ZeroDivisionError as e:
-        # Output to terminal.
-        excType, excObj, excTb = sys.exc_info() # pylint: disable=W0612
-        print(' Error Type  : {}'.format(excType.__name__))
-        print(' File  Name  : {}'.format(excTb.tb_frame.f_code.co_filename))
-        print(' Line  Number: {}'.format(excTb.tb_lineno))
-
-        # Output to logFile.txt via logger.
-        lg.exception('    ** Test log exc      msg:\n %s\n', str(e))
-
-
+    #lg.info(    '     ** Test log info     msg.'   )
+    #lg.warning(    '  ** Test log warning  msg.'   )
+    #lg.error(    '    ** Test log error    msg.'   )
+    #lg.critical(    ' ** Test log critical msg.'   )
+    #lg.debug(    '    ** Test log debug    msg.'   )
+    #
+    #try:
+    #    1/0
+    #except ZeroDivisionError as e:
+    #    # Output to terminal.
+    #    excType, excObj, excTb = sys.exc_info() # pylint: disable=W0612
+    #    print(' Error Type  : {}'.format(excType.__name__))
+    #    print(' File  Name  : {}'.format(excTb.tb_frame.f_code.co_filename))
+    #    print(' Line  Number: {}'.format(excTb.tb_lineno))
+    #
+    #    # Output to logFile.txt via logger.
+    #    lg.exception('    ** Test log exc      msg:\n %s\n', str(e))
+    #
+    #
     #1/0 # Output to exceptionFile.txt via file redirect via cron.
     ###############################
 
