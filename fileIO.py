@@ -5,7 +5,73 @@ import datetime as dt
 # Version number of the shared files.
 # Calling it the version of the "server".
 # As opposed to the version number of the "app" which is in cmdVectors.py
-VER = 'v1.8.14 - 13-Aug-2026'
+VER = 'v1.8.15 - 15-Aug-2026'
+#############################################################################
+
+def verifyAndInit(searchStrLst, numIntLst, numLinesInFile):
+
+    err             = False
+    errStr          = ''
+
+    lenSearchStrLst = len( searchStrLst )
+    lenNumIntLst    = len( numIntLst    )
+
+    numLinesToRtn   = 0
+    numMatchesToRtn = 0
+    startIdx        = 0
+    endIdx          = 0
+
+    if lenNumIntLst == 0 and lenSearchStrLst == 0:
+        errStr  =  ' ERROR. To few parameters.\n'
+        errStr +=  ' Not even the default parameter was received.'
+        err = True
+        return err, errStr, numMatchesToRtn, startIdx, endIdx
+
+    if lenSearchStrLst > 0:
+        startIdx = 0            # Match strings supplied.
+        endIdx   = numLinesInFile-1
+        if lenNumIntLst > 1:
+            errStr =  ' ERROR. Too many parameters.\n'
+            errStr += ' When 1 or more double quoted search strings are\n'
+            errStr += ' supplied then only one digit, at most,'
+            errStr += ' (num matches to return) can be supplied.'
+            err = True
+            return err, errStr, numMatchesToRtn, startIdx, endIdx
+
+        if lenNumIntLst == 0:
+            # Loop control when no match string supplied.
+            numMatchesToRtn = 'all'
+        else:
+            # Loop control when no match string supplied.
+            numMatchesToRtn = numIntLst[0]
+
+    else:                       # No match strings supplied.
+        if lenNumIntLst > 2:
+            errStr =  ' ERROR. Too many parameters.\n'
+            errStr += ' When no double quoted search string is\n'
+            errStr += ' supplied then only two digits, at most,\n'
+            errStr += ' (numLines to return and, optionally, the\n'
+            errStr += ' start log file index) can be supplied.'
+            err = True
+            return err, errStr, numMatchesToRtn, startIdx, endIdx
+
+        numLinesToRtn = min(numIntLst[0], numLinesInFile) # Loop ctrl, no match str supplied.
+        numLinesToRtn = max(numLinesToRtn, 1) # Don't allow reading <= 0 lines.
+
+        if lenNumIntLst > 1:
+            startIdx = max(int(numIntLst[1]),0) # Don't allow starting before 0th line.
+
+            if startIdx > numLinesInFile:
+                startIdx=max( numLinesInFile - numLinesToRtn, 0 ) # Can't start after EOF.
+        else:
+            startIdx = max(numLinesInFile - numLinesToRtn, 0)
+
+        # Calc endIdx.
+        endIdx = max(startIdx + numLinesToRtn - 1, 0)
+        endIdx = min(endIdx, numLinesInFile-1)
+
+    return err, errStr, numMatchesToRtn, startIdx, endIdx
+#############################################################################
 
 def splitList(parmLst):
 
@@ -22,9 +88,11 @@ def splitList(parmLst):
     # end srch parm list ['opened at', 'hello', 'multi word parm']
     # end num parm list  ['3', '4', '9']
 
+    err             = False
+    errStr          = ''
+
     inDouble     = False
     builtMatch   = ''
-    rspStr       = ''
     numStrLst    = []
     searchStrLst = []
 
@@ -32,12 +100,14 @@ def splitList(parmLst):
 
         # Exit if error condition detected.
         if el == '""':
-            rspStr = ' ERROR. Empty match string.'
-            return rspStr, numStrLst, searchStrLst
+            errStr = ' ERROR. Empty match string.'
+            err = True
+            return err, errStr, numStrLst, searchStrLst
 
         if el.startswith('"') and inDouble:
-            rspStr =  ' ERROR. Nested double quotes.'
-            return rspStr, numStrLst, searchStrLst
+            errStr =  ' ERROR. Nested double quotes.'
+            err = True
+            return err, errStr, numStrLst, searchStrLst
 
         # Add any simple parms.
         if not (el.startswith('"') or el.endswith('"')) and not inDouble:
@@ -63,7 +133,7 @@ def splitList(parmLst):
                 searchStrLst.append(builtMatch)
                 inDouble = False
 
-    return rspStr, numStrLst, searchStrLst
+    return err, errStr, numStrLst, searchStrLst
 #############################################################################
 
 def readFileWrk(parmLst, inFile):
@@ -90,72 +160,25 @@ Example parameters:
         return ' Could not open file {} for reading'.format(inFile)
     ###########################
 
-    rspStr, numStrLst, searchStrLst = splitList(parmLst)
+    # Split parms.
+    err, errStr, numStrLst, searchStrLst = splitList(parmLst)
+    lenSearchStrLst = len( searchStrLst )
 
-    if 'ERROR' in rspStr: # Empty or nested double quotes.
-        return rspStr + usage
+    if err: # Empty or nested double quotes.
+        return errStr + usage
 
     isAllStrsAllDigits = all( s.isdigit() for s in numStrLst)
 
     if not isAllStrsAllDigits:
         return ' ERROR. not isAllStrsAllDigits.' + usage
 
-    numIntLst  = [ int(x) for x in numStrLst ]
+    numIntLst    = [ int(x) for x in numStrLst ]
 
     # Verify correct number of parameters and if correct, init vars.
-    numLinesToRtn   = 0 # Loop control when no match string supplied
-    numMatchesToRtn = 0 # Loop control when  q match string supplied
-    startIdx        = 0
-    endIdx          = 0
-
-    lenSearchStrLst = len( searchStrLst )
-    lenNumStrLst    = len( numStrLst    )
-
-    if lenNumStrLst == 0 and lenSearchStrLst == 0:
-        rspStr  =  ' To few parameters.\n'
-        rspStr +=  ' Not even the default parameter was received.'
-        return rspStr
-
-    if lenSearchStrLst > 0:
-        startIdx = 0            # Match strings supplied.
-        endIdx   = numLinesInFile-1
-        if lenNumStrLst > 1:
-            rspStr =  ' Too many parameters.\n'
-            rspStr += ' When 1 or more double quoted search strings are\n'
-            rspStr += ' supplied then only one digit, at most,'
-            rspStr += ' (num matches to return) can be supplied.'
-            return rspStr
-
-        if lenNumStrLst == 0:
-            # Loop control when no match string supplied.
-            numMatchesToRtn = 'all'
-        else:
-            # Loop control when no match string supplied.
-            numMatchesToRtn = numIntLst[0]
-
-    else:                       # No match strings supplied.
-        if lenNumStrLst > 2:
-            rspStr =  ' Too many parameters.\n'
-            rspStr += ' When no double quoted search string is\n'
-            rspStr += ' supplied then only two digits, at most,\n'
-            rspStr += ' (numLines to return and, optionally, the\n'
-            rspStr += ' start log file index) can be supplied.'
-            return rspStr
-
-        numLinesToRtn = min(numIntLst[0], numLinesInFile) # Loop ctrl, no match str supplied.
-        numLinesToRtn = max(numLinesToRtn, 1) # Don't allow reading <= 0 lines.
-
-        if lenNumStrLst > 1:
-            startIdx = max(int(numIntLst[1]),0) # Don't allow starting before 0th line.
-
-            if startIdx > numLinesInFile:
-                startIdx=max( numLinesInFile - numLinesToRtn, 0 ) # Can't start after EOF.
-        else:
-            startIdx = max(numLinesInFile - numLinesToRtn, 0)
-
-        # Calc endIdx.
-        endIdx = max(startIdx + numLinesToRtn - 1, 0)
-        endIdx = min(endIdx, numLinesInFile-1)
+    err, errStr, numMatchesToRtn, startIdx, endIdx = \
+    verifyAndInit(searchStrLst, numIntLst, numLinesInFile)
+    if 'ERROR' in errStr: # Empty or nested double quotes.
+        return errStr + usage
     ###########################
 
     rspStr  = ' numLinesInFile  = {:4}.\n'.format( numLinesInFile  )
