@@ -5,7 +5,7 @@ import datetime as dt
 # Version number of the shared files.
 # Calling it the version of the "server".
 # As opposed to the version number of the "app" which is in cmdVectors.py
-VER = 'v1.8.15 - 15-Aug-2026'
+VER = 'v1.8.16 - 16-Aug-2026'
 #############################################################################
 
 def verifyAndInit(searchStrLst, numIntLst, numLinesInFile):
