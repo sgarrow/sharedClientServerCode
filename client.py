@@ -15,6 +15,7 @@ import queue
 import socket
 import select
 import threading
+import pprint as pp
 
 import cfg
 import clientCustomize as cc
@@ -122,7 +123,32 @@ if __name__ == '__main__':
     arguments  = sys.argv
     scriptName = arguments[0]
     userArgs   = arguments[1:]
-    mnUut      = userArgs[0]
+
+    if len(userArgs) == 0:
+        cfgRspStr, cfgDict = cfg.getCfgDict('')
+        selUutDict = { k:v for k,v in enumerate(cfgDict) }
+        print()
+        for k,v in selUutDict.items():
+            print(' {} - {}'.format(k,v))
+        validChoice = False
+        while not validChoice:
+            uutToConnectTo = input('\n Select UUT to connect to (or (q)uit) -> ')
+            if uutToConnectTo == 'q':
+                print()
+                sys.exit()
+            try:
+                uutToConnectToInt = int(uutToConnectTo)
+            except:
+                print(' Invalid selection. Enter a number in range 0 to {}'.format(len(selUutDict)-1))
+            else:
+                if -1 < uutToConnectToInt < len(selUutDict):
+                    validChoice = True
+                else:
+                    print(' Invalid selection. Enter a number in range 0 to {}'.format(len(selUutDict)-1))
+        mnUut = selUutDict[int(uutToConnectToInt)]
+    else:
+        mnUut  = userArgs[0]
+
     cfgRspStr, cfgDict = cfg.getCfgDict(mnUut)
 
     if 'ERROR' in cfgRspStr:
@@ -134,12 +160,21 @@ if __name__ == '__main__':
     # Each client will connect to the server with a new address.
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    connectType = input(' same, lan, internet (s,l,i) -> ')
+    connectType = input(' same, lan, internet, lan exact (s,l,i,lx,q) -> ')
+
+    if connectType == 'q':
+        print()
+        sys.exit()
+
     #connectType  = 'l' # pylint: disable=C0103
     connectDict  = {'s':'localhost',
                     'l':cfgDict[mnUut]['myLan'],
                     'i':cfgDict[mnUut]['myIP']}
     PORT         = int(cfgDict[mnUut]['myPort'])
+
+    if connectType == 'lx':
+        connectDict['l'] = input( 'Enter LAN IP -> ' )
+        connectType = 'l'
 
     try:
         clientSocket.connect((connectDict[connectType], PORT ))
